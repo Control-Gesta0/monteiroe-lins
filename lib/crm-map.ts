@@ -22,8 +22,8 @@ const CAMPOS = {
 const TEXTO_24H = 'Vou passar a sua mensagem pra equipe do escritório, e eles te respondem por aqui em até 24 horas.'
 
 export const CRM_MAP = {
-  /** textarea que o Salesbot envia. Criar o campo "Resposta IA (Lia)" no Kommo e colar o ID aqui. */
-  respostaFieldId: 0,
+  /** textarea "Resposta IA (Lia)" que o Salesbot envia (criado pela API em 14/10/2026) */
+  respostaFieldId: 1128813,
 
   /** a IA NUNCA escreve nestes campos: CPF/CNPJ, Nº do Processo, Processo, E-mail */
   camposProibidos: [641670, 707674, 1114058, 1111586] as number[],

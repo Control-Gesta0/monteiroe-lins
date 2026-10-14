@@ -50,8 +50,8 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 1. 🙋 **Chave da OpenAI** (conta da Control Gestão ou do escritório).
 2. **Rodar os evals:** `EVAL_REPS=3 npm run evals` → 10 cenários aprovados nas 3 rodadas.
 3. 🙋 **Fundador:** nome e corporação para o `prompts/nucleo.md` (a Lia cita na primeira mensagem). Rodar os evals de novo depois.
-4. **Campo de resposta:** criar no lead o campo textarea "Resposta IA (Lia)" e colar o ID em `CRM_MAP.respostaFieldId`. (Posso criar pela API, se autorizarem.)
-5. 🙋 **Salesbot de envio** (só pela tela do Kommo): um bot com um passo "Enviar mensagem" com o conteúdo do campo "Resposta IA (Lia)". Anotar o ID em `KOMMO_BOT_ID`.
+4. ✅ **Campo de resposta:** "Resposta IA (Lia)" criado no lead pela API em 14/10/2026 (ID `1128813`, textarea) e já está em `CRM_MAP.respostaFieldId`.
+5. 🙋 **Salesbot de envio** (só pela tela do Kommo): um bot com um passo "Enviar mensagem" cujo texto é o campo do lead "Resposta IA (Lia)". Anotar o ID do bot em `KOMMO_BOT_ID`.
 6. 🙋 **Template de boas-vindas no WhatsApp (Meta)**, para lead de formulário que ainda não mandou mensagem. Sugestão (o trecho "Aqui é a Lia, assistente virtual" precisa ficar igual, é como o sistema reconhece que não foi uma pessoa):
    > Oi, {{1}}! Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. O escritório foi fundado por um policial e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
 7. 🙋 **Digital Pipeline** em "Leads de entrada" do Funil/SDR: pôr a tag `lia` e enviar o template acima. Na rampagem, só para os leads escolhidos.
