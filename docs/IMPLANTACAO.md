@@ -51,10 +51,7 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 2. **Rodar os evals:** `EVAL_REPS=3 npm run evals` → 10 cenários aprovados nas 3 rodadas.
 3. 🙋 **Fundador:** nome e corporação para o `prompts/nucleo.md` (a Lia cita na primeira mensagem). Rodar os evals de novo depois.
 4. ✅ **Campo de resposta:** "Resposta IA (Lia)" criado no lead pela API em 14/10/2026 (ID `1128813`, textarea) e já está em `CRM_MAP.respostaFieldId`.
-5. 🙋 **Salesbot de envio** (só pela tela do Kommo; a API `/api/v4/bots` lista os bots mas não cria nem mostra os passos):
-   - criar um Salesbot com o nome **`Lia · envio`**, sem gatilho próprio (quem dispara é o código, pelo `salesbot/run`);
-   - um único passo **Enviar mensagem**, com o texto = marcador do lead **Resposta IA (Lia)** (escolher pelo botão de marcadores);
-   - salvar e deixar ativo. O ID eu pego pela API (`GET /api/v4/bots`, procurando o nome) e coloco em `KOMMO_BOT_ID`.
+5. 🟡 **Salesbot de envio:** criado na tela em 14/10/2026, **"Lia envio", ID `93439`** (já em `KOMMO_BOT_ID` no `.env.local.example`). Falta o texto do passo "Enviar mensagem" ser o campo do lead **Resposta IA (Lia)**: o campo foi colocado no grupo "IA Lia" para aparecer na lista de marcadores (recarregar a página do bot). Sem isso a Lia deposita a resposta no card e o bot envia vazio. A API `/api/v4/bots` não mostra os passos do bot, então essa conferência é na tela ou no E2E.
 6. 🙋 **Template de boas-vindas no WhatsApp (Meta)**, para lead de formulário que ainda não mandou mensagem. Sugestão (o trecho "Aqui é a Lia, assistente virtual" precisa ficar igual, é como o sistema reconhece que não foi uma pessoa):
    > Oi, {{1}}! Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. O escritório foi fundado por um policial e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
 7. 🙋 **Digital Pipeline** em "Leads de entrada" do Funil/SDR: pôr a tag `lia` e enviar o template acima. Na rampagem, só para os leads escolhidos.
