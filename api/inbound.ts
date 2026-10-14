@@ -3,6 +3,7 @@ import { waitUntil } from '@vercel/functions'
 import crypto from 'crypto'
 import { processLead } from '../lib/agent'
 import { CONFIG } from '../lib/config'
+import { CRM_MAP } from '../lib/crm-map'
 import { logExec } from '../lib/execlog'
 import { appendMessage, isEchoOfSent, markHumanSpoke, seenMessage } from '../lib/history'
 import { mediaKind, mediaToText } from '../lib/media'
@@ -84,9 +85,10 @@ async function ingest(msgs: InboundMsg[], webhookId: string): Promise<void> {
       // Eco do que o NOSSO bot enviou: já está no histórico
       if (await isEchoOfSent(m.leadId, text)) continue
       if (outgoing) {
-        // Saída que não é nossa = humano (ou outra automação) falando: registra e recua
+        // Saída que não é nossa = humano (ou outra automação) falando: registra e recua.
+        // Exceção: template de abertura disparado pelo Salesbot (CRM_MAP.saidasAutomaticas) não pausa a IA.
         await appendMessage(m.leadId, { id: `kommo:${m.id}`, dir: 'out', text, ts: Date.now() })
-        await markHumanSpoke(m.leadId)
+        if (!CRM_MAP.saidasAutomaticas.some(re => re.test(text))) await markHumanSpoke(m.leadId)
         continue
       }
 

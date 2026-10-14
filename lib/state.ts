@@ -24,6 +24,10 @@ export interface LeadState {
   /** assunto de outra porta citado no meio da conversa */
   outroAssunto?: string
   finalizado?: { motivo: string; em: string; resumo: string }
+  /** Monteiro & Lins: resultado da análise do contracheque (feita em código) */
+  analise?: { decisao: string; comprometimento: number; reducaoMensal: number; competencia: string; assinatura: string; em: string }
+  /** horários (epoch s) já oferecidos ao lead: o próximo consultar_horarios oferece outros */
+  ofertados?: number[]
 }
 
 const TTL = 90 * 86400

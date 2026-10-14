@@ -51,8 +51,8 @@ Cerca de 35% marcaram renda abaixo de 10K. Pela regra nova, esse grupo já chega
 **Agenda real (176 reuniões no campo Agendamento):** quarta (49) e quinta (44) lideram, terça 33, segunda 29, sexta 21. Os horários concentram das 9h30 às 11h30 e das 14h30 às 17h, em blocos de 30 min. A regra nova (só terça a quinta) corta 28% do que se marcava antes.
 
 **Modelos de mensagem (24).** Já existe um roteiro completo: Saudação → Holerite → Análise → Agendamento → Sobre ação → Lista de documentos, mais os de desqualificação ("Se baixo", "-3k Bruto", "Def. Pública"). O prompt foi construído em cima deles. Dois pontos de atenção:
-- "Sobre ação SE" (jun/2025) fala em **35%** e liminar em **30 a 90 dias**; "Ação SE" (set/2025, mais recente) fala em **30%** e **6 a 7 meses**. O prompt usa a versão mais recente. Vale apagar ou corrigir o modelo antigo.
-- "Repescagem" promete "reduzir até 70%" e "Resumo-Pós reunião" fala em "chance de vitória de 80%". A IA não pode repetir isso (promessa de resultado, vedada pelo Código de Ética da OAB). Ficou proibido no prompt.
+- "Sobre ação SE" (jun/2025) fala em **35%** e liminar em **30 a 90 dias**; "Ação SE" (set/2025, mais recente) fala em **30%** e **6 a 7 meses**. A planilha usa 40% (Decreto 50.516/2026), então a Lia não cita nenhum dos dois até o escritório confirmar a explicação e o prazo. Vale corrigir os modelos antigos.
+- "Repescagem" promete "reduzir até 70%" e "Resumo-Pós reunião" fala em "chance de vitória de 80%". A IA não pode repetir isso (promessa de resultado, vedada pelo Código de Ética da OAB). Está proibido no prompt e bloqueado em código (`lib/regras.ts`).
 
 **Já existe outra IA na conta?** A etapa "ATENDIMENTO LIA" (Funil/Empresarial) e a tag "Bia" sugerem um agente anterior. Antes de ligar este, confirmar que nenhum outro bot responde no mesmo número do WhatsApp do Funil/SDR (um número, um agente; senão o lead recebe resposta dupla).
 
@@ -96,7 +96,7 @@ reconhecida que poderia virar o jogo    → revisao_humana (equipe responde em a
 2. **Credcesta:** a aba REGRAS não tem a palavra "CREDCESTA", então na planilha essa rubrica cai em REVISAR e fica fora da conta. No código acrescentei "CREDCESTA" como cartão benefício. **Sugiro acrescentar a mesma linha na aba REGRAS da planilha**, senão o comercial e a IA vão chegar em números diferentes.
 3. **Rubrica desconhecida:** se o lead não passou na regra, mas alguma rubrica caiu em REVISAR e poderia fazer ele passar (se fosse consignação ou desconto obrigatório), a IA não desqualifica: manda para a equipe. Assim a IA nunca perde um lead por causa de uma descrição que a lista não conhecia.
 
-**Prova (14/10/2026):** preenchi a aba CONTRACHEQUE da planilha original com 7 contracheques de teste, recalculei no LibreOffice e comparei com o código. Renda bruta, obrigatórios, líquida, cada modalidade, comprometimento e as reduções dos dois cenários bateram nos 7 casos (diferença menor que R$ 0,01). Rodar: `npm test` (13 testes, 13 passando).
+**Prova (14/10/2026):** preenchi a aba CONTRACHEQUE da planilha original com 7 contracheques de teste, recalculei no LibreOffice e comparei com o código. Renda bruta, obrigatórios, líquida, cada modalidade, comprometimento e as reduções dos dois cenários bateram nos 7 casos (diferença menor que R$ 0,01). Rodar: `npm test`.
 
 ## 3. Mapa do CRM para a IA (IDs ao vivo, 14/10/2026)
 
@@ -165,7 +165,7 @@ Respondidas em 14/10: nome da IA (**Lia**), tese da redução (**Cenário A, 40%
 Ainda faltam:
 
 1. **Fundador:** nome e corporação do policial que fundou o escritório (a Lia cita em toda primeira mensagem).
-2. **Agenda:** o acesso à agenda prometido, para a Lia consultar horário livre de verdade. Até lá ela usa a grade da seção 7 do prompt. Qual o tamanho do bloco (30 min?) e quem é o advogado da reunião?
+2. **Agenda:** o acesso à agenda prometido, para a Lia consultar horário livre de verdade. Até lá ela usa a grade fixa de `lib/crm-map.ts`. Qual o tamanho do bloco (30 min?) e quem é o advogado da reunião?
 3. **Explicação da ação:** a planilha trabalha com o Decreto 50.516/2026 (teto de 40%), e os modelos de mensagem antigos falam em limite de 30% e prazo de 6 a 7 meses. Qual explicação e qual prazo a Lia deve dar hoje?
 4. **Perfis fora:** pensionista, Marinha/Aeronáutica/Exército e Guarda Municipal ficam de fora? (há motivos de perda para eles)
 5. **Honorários:** confirmar que a Lia nunca fala valor.
@@ -193,6 +193,7 @@ Ainda faltam:
 Se a planilha mudar (nova palavra-chave, nova margem), repetir:
 
 ```bash
+# do diretório do projeto
 pip install openpyxl                       # e LibreOffice instalado
 python3 scripts/planilha_preencher.py docs/planilha-readequacao-margem.xlsx tests/fixtures/cenarios.json /tmp/in
 soffice --headless --calc --convert-to xlsx --outdir /tmp/out /tmp/in/*.xlsx

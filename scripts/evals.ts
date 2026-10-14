@@ -16,6 +16,12 @@ loadEnv()
 for (const [key, val] of Object.entries({ KOMMO_DOMAIN: 'https://eval.kommo.com', KOMMO_TOKEN: 'x', KOMMO_ACCOUNT_ID: '1', UPSTASH_REDIS_REST_URL: 'https://x.upstash.io', UPSTASH_REDIS_REST_TOKEN: 'x', WEBHOOK_SECRET: 'x' })) process.env[key] ||= val
 
 export interface World {
+  tasks: Array<{ typeId: number; text: string; completeTill: number }>
+  lost?: number | null
+  /** reuniões já marcadas na conta (epoch s) */
+  ocupados: number[]
+  /** "agora" do cenário (epoch s): deixa a agenda determinística */
+  agoraS: number
   statusId: number
   pipelineId: number
   fields: Record<number, { value?: unknown; enumIds: number[] }>
@@ -34,6 +40,10 @@ export interface Cenario {
   /** conversa anterior na porta (já travada) */
   historico?: Array<['in' | 'out', string]>
   state?: Record<string, any>
+  /** Monteiro & Lins: onde o lead está (padrão: Funil/SDR, Qualificação) e agenda já ocupada */
+  statusId?: number
+  pipelineId?: number
+  ocupados?: number[]
   msgs: string[]
   checks: Array<{ nome: string; fn: (w: World, t: Turno[]) => boolean }>
   criterios: string[]
@@ -69,6 +79,11 @@ async function main() {
       async addTags(t) { t.forEach(x => w.tags.add(x.toLowerCase())) },
       async removeTags(t) { t.forEach(x => w.tags.delete(x.toLowerCase())); w.log.push(`removeTags ${t.join(',')}`) },
       async addNote(n) { w.notes.push(n) },
+      async createTask(typeId, text, completeTill) { w.tasks.push({ typeId, text, completeTill }); w.log.push(`task ${typeId}`) },
+      async markLost(r) { w.lost = r ?? null; w.statusId = 143 },
+      async horariosOcupados() { return [...w.ocupados] },
+      async reservarHorario(inicio) { if (w.ocupados.includes(inicio)) return false; w.ocupados.push(inicio); return true },
+      agoraS: () => w.agoraS,
       async getState() { return structuredClone(w.state) },
       async patchState(p) { Object.assign(w.state, p); return structuredClone(w.state) },
     }
@@ -81,7 +96,10 @@ async function main() {
     for (let rep = 1; rep <= REPS; rep++) {
       const porta = portaById(c.porta)
       if (!porta) throw new Error(`cenário ${c.id}: porta ${c.porta} não existe`)
-      const w: World = { statusId: 1, pipelineId: 1, fields: {}, tags: new Set([GATE]), notes: [], state: { porta: porta.id, portaEm: 0, ...(c.state || {}) }, log: [] }
+      const w: World = {
+        statusId: c.statusId ?? 85921943, pipelineId: c.pipelineId ?? 11197195, fields: {}, tags: new Set([GATE]), notes: [],
+        state: { porta: porta.id, portaEm: 0, ...(c.state || {}) }, log: [], tasks: [], ocupados: [...(c.ocupados || [])], agoraS: Math.floor(Date.now() / 1000),
+      }
       const history: ChatMsg[] = (c.historico || []).map(([dir, text], i) => ({ id: `h${i}`, dir, text, ts: i + 1 }))
       const turnos: Turno[] = []
       mundoAtual = w

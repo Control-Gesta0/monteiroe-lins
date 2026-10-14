@@ -48,7 +48,7 @@ async function describe(url: string, kind: 'image' | 'document'): Promise<string
     : [{ type: 'image_url', image_url: { url: `data:${file.type || 'image/jpeg'};base64,${b64}` } }]
   const r = await openai.chat.completions.create({
     model: CONFIG.visionModel,
-    max_completion_tokens: 400,
+    max_completion_tokens: CRM_MAP.midia.maxTokens ?? 400,
     messages: [{ role: 'system', content: CRM_MAP.midia.instrucaoVisao }, { role: 'user', content }],
   })
   return (r.choices[0]?.message?.content || '').trim() || null

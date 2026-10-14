@@ -4,6 +4,9 @@ import { DISSE_NAO_SEI, evidenceFound, matchOption, overlap, parseNumeroBR } fro
 import type { KommoFieldValue } from './kommo'
 import { classificar } from './router'
 import type { LeadState } from './state'
+import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
+import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
+import { extrairContracheque } from './contracheque-texto'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -19,6 +22,14 @@ export interface LeadPort {
   addTags(tags: string[]): Promise<void>
   removeTags(tags: string[]): Promise<void>
   addNote(text: string): Promise<void>
+  /** Monteiro & Lins */
+  createTask(typeId: number, text: string, completeTill: number): Promise<void>
+  markLost(lossReasonId?: number): Promise<void>
+  /** epoch (s) das reuniões já marcadas na conta */
+  horariosOcupados(): Promise<number[]>
+  /** reserva atômica do horário (false = outro lead acabou de pegar) */
+  reservarHorario(inicio: number): Promise<boolean>
+  agoraS(): number
   getState(): Promise<LeadState>
   patchState(p: Partial<LeadState>): Promise<LeadState>
 }
@@ -35,12 +46,19 @@ export interface ToolCtx {
   lastAgentText: string
 }
 
-export interface ToolOutcome { content: string; isError: boolean; handoff?: boolean; urgente?: boolean }
+export interface ToolOutcome {
+  content: string
+  isError: boolean
+  handoff?: boolean
+  urgente?: boolean
+  /** texto aprovado que o CÓDIGO envia ao lead, sem passar pelo modelo (desqualificação, revisão, confirmação) */
+  textoFinal?: string
+}
 
 const ok = (content: string, extra: Partial<ToolOutcome> = {}): ToolOutcome => ({ content, isError: false, ...extra })
 const err = (content: string): ToolOutcome => ({ content, isError: true })
 
-export const MOTIVOS = ['qualificado', 'advogado_ativo', 'menor_de_idade', 'urgencia', 'fora_do_escopo', 'pediu_humano', 'desistiu'] as const
+export const MOTIVOS = ['advogado_ativo', 'menor_de_idade', 'urgencia', 'fora_do_escopo', 'pediu_humano', 'desistiu', 'discordou_analise'] as const
 type Motivo = typeof MOTIVOS[number]
 
 /** Sinal mínimo que a evidência precisa ter para cada motivo de finalização. */
@@ -50,6 +68,7 @@ const SINAL_MOTIVO: Partial<Record<Motivo, RegExp>> = {
   urgencia: /comida|fome|comer|rem[eé]dio|medica|despej|aluguel atrasad|na rua|intern|hospital|urgent|desesper/i,
   desistiu: /desist|n[aã]o (quero|tenho interesse|preciso) mais|deixa (pra|para) l[aá]|pode encerrar|n[aã]o quero continuar|n[aã]o vou (querer|continuar)/i,
   pediu_humano: /humano|pessoa|atendente|advogad|doutor|dra?\b|falar com|me liga|liga[cç][aã]o|reclam/i,
+  discordou_analise: /n[aã]o concordo|discord|errad|n[aã]o (est[aá]|t[aá]) certo|refaz|olha de novo|confere de novo|revis|esfor[cç]o|n[aã]o pode ser/i,
 }
 
 export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
@@ -114,20 +133,60 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
       type: 'function',
       function: {
         name: 'finalizar_atendimento',
-        description: 'Encerra a participação da IA nesta conversa. Chame ANTES de escrever a mensagem de encerramento. Use quando: o roteiro obrigatório está completo (qualificado); o lead tem advogado ativo no caso; quem escreve é menor de idade; há urgência humanitária; o assunto está fora do escopo; o lead pediu humano; ou desistiu. Depois disso envie a mensagem de encerramento e NÃO faça perguntas.',
+        description: 'Encerra a participação da IA nesta conversa e passa para a equipe. Chame ANTES de escrever a mensagem de encerramento. Use quando: o lead tem advogado ativo na mesma dívida; quem escreve é menor de idade; há urgência humanitária; o assunto está fora do escopo; o lead pediu para falar com uma pessoa; desistiu; ou discorda do resultado da análise. Depois disso envie a mensagem de encerramento e NÃO faça perguntas.',
         parameters: {
           type: 'object',
           properties: {
             motivo: { type: 'string', enum: [...MOTIVOS] },
-            evidencia: { type: 'string', description: 'Trecho literal do lead que justifica o motivo (dispensado para "qualificado")' },
+            evidencia: { type: 'string', description: 'Trecho literal do lead que justifica o motivo' },
             resumo: { type: 'string', description: '2 a 4 frases para a equipe: quem é, a situação e o que busca' },
           },
-          required: ['motivo', 'resumo'],
+          required: ['motivo', 'evidencia', 'resumo'],
           additionalProperties: false,
         },
       },
     },
   )
+  const extras = porta.ferramentas || []
+  if (extras.includes('analisar_contracheque')) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'analisar_contracheque',
+        description: 'Faz a análise do contracheque que o lead mandou (a transcrição "CONTRACHEQUE | ..." já está na conversa). O cálculo e a decisão são feitos pelo sistema com a planilha do escritório. Chame assim que o contracheque legível chegar. Não precisa de parâmetros.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    })
+  }
+  if (extras.includes('consultar_horarios')) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'consultar_horarios',
+        description: 'Devolve as DUAS opções de horário livres para oferecer ao lead (e outras de reserva). Chame antes de oferecer horário e de novo se o lead recusar as duas.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+    })
+  }
+  if (extras.includes('agendar_reuniao')) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: 'agendar_reuniao',
+        description: 'Marca a reunião no horário que o lead escolheu. Só use horário devolvido por consultar_horarios ou que o lead pediu explicitamente. A confirmação ao lead sai pelo sistema.',
+        parameters: {
+          type: 'object',
+          properties: {
+            data_hora: { type: 'string', description: 'Horário de Brasília no formato AAAA-MM-DDTHH:MM, ex.: 2026-10-16T10:00' },
+            formato: { type: 'string', enum: ['online', 'presencial'] },
+            evidencia: { type: 'string', description: 'Trecho literal do lead escolhendo o horário' },
+          },
+          required: ['data_hora', 'formato', 'evidencia'],
+          additionalProperties: false,
+        },
+      },
+    })
+  }
   if (CRM_MAP.etapas.length) {
     tools.push({
       type: 'function',
@@ -209,7 +268,112 @@ export async function aplicarFinalizacao(ctx: ToolCtx, motivo: string, resumoRaw
     const outro = state.outroAssunto ? `\nOutro assunto citado: ${state.outroAssunto}` : ''
     await port.addNote(`🤖 IA finalizou — ${porta.label} · ${motivo}${urgente ? ' · URGENTE' : ''}\n\n${resumo}${quem}${outro}\n\n${linhas.join('\n')}`)
   }
+  const sdr = CRM_MAP.sdr
+  if (resumo) await port.writeFields([{ field_id: sdr.campos.resumo, values: [{ value: `${motivo}: ${resumo}`.slice(0, 2000) }] }])
+  if (sdr.tarefas.motivosComRetorno.includes(motivo)) {
+    const prazo = port.agoraS() + sdr.tarefas.horasRetorno * 3600
+    await port.createTask(sdr.tarefas.tipoRetorno, `Lia: responder o lead em até ${sdr.tarefas.horasRetorno}h (${motivo}). ${resumo}`, prazo)
+  }
   await port.patchState({ finalizado: { motivo, resumo, em: new Date().toISOString() } })
+}
+
+// ---------- Monteiro & Lins: funil SDR, contracheque e agenda ----------
+
+/** Move dentro do Funil/SDR, fail-closed: outro funil ou etapa fora da alçada = não mexe. */
+export async function moverSdr(port: LeadPort, alvo: number): Promise<boolean> {
+  const lead = await port.getLead()
+  if (lead.pipelineId !== CRM_MAP.sdr.pipelineId) return false
+  if (!CRM_MAP.sdr.etapasDaIA.includes(lead.statusId)) return false
+  if (lead.statusId !== alvo) await port.moveStage(alvo, CRM_MAP.sdr.pipelineId)
+  return true
+}
+
+const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const pct = (n: number) => `${(n * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+const listaSlots = (ss: Slot[]) => ss.map(x => `${x.rotulo} [${x.iso}]`).join(' · ')
+
+async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
+  const { port } = ctx
+  const sdr = CRM_MAP.sdr
+  const lido = extrairContracheque(ctx.leadText)
+  if (!lido || !lido.rubricas.length) return err('Ainda não há contracheque legível na conversa. Peça ao lead uma foto ou PDF do contracheque mais recente, inteiro e legível.')
+  if (/n[aã]o/.test(lido.legivel) || !lido.rubricas.some(r => r.tipo === 'P')) return err('O contracheque veio ilegível ou cortado (sem os proventos). Peça ao lead outra foto, com o documento inteiro e bem iluminado.')
+
+  const assinatura = `${lido.competencia}|${lido.rubricas.map(r => `${r.descricao}:${r.valor}`).join(';')}`
+  const state = await port.getState()
+  if (state.analise?.assinatura === assinatura) {
+    return ok(`Este contracheque já foi analisado: ${state.analise.decisao}, comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês. Siga o roteiro a partir daí.`)
+  }
+
+  let r: ResultadoAnalise = analisarContracheque(lido.rubricas)
+  // Valor ilegível pode virar o jogo: só desqualifica com o documento todo lido
+  if (lido.ilegiveis.length && r.decisao !== 'qualificado' && r.decisao !== 'revisao_humana') {
+    r = { ...r, decisao: 'revisao_humana', motivo: `valores ilegíveis: ${lido.ilegiveis.join(', ')}` }
+  }
+
+  await port.patchState({ analise: { decisao: r.decisao, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, competencia: lido.competencia, assinatura, em: new Date().toISOString() } })
+  await port.addNote(`🤖 Lia · análise do contracheque ${lido.orgao} ${lido.competencia}\n${r.observacao}${lido.ilegiveis.length ? `\nIlegíveis: ${lido.ilegiveis.join(', ')}` : ''}`)
+  const corp = sdr.corporacaoPorOrgao.find(c => c.re.test(lido.orgao))
+  if (corp) await port.writeFields([{ field_id: sdr.campos.corporacao, values: [{ enum_id: corp.enumId }] }])
+
+  const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
+  switch (r.decisao) {
+    case 'qualificado':
+      await moverSdr(port, sdr.etapas.qualificado)
+      return ok(`QUALIFICADO. Comprometimento da renda líquida com consignado: ${pct(r.totais.comprometimento)}. Redução mensal estimada (teto de 40%): ${brl(r.reducaoMensal)}. Mostre esses dois números ao lead com "pode baixar cerca de", diga que o próximo passo é a conversa com o advogado e chame consultar_horarios para oferecer dois horários.`)
+    case 'renda_abaixo':
+    case 'alivio_baixo': {
+      await port.addTags([sdr.desqualificacao.tag])
+      await aplicarFinalizacao(ctx, r.decisao, resumo)
+      if (sdr.desqualificacao.moverParaPerdido) {
+        const lead = await port.getLead()
+        if (lead.pipelineId === sdr.pipelineId && sdr.etapasDaIA.includes(lead.statusId)) await port.markLost(sdr.desqualificacao.motivoPerda[r.decisao])
+      }
+      return ok(`Desqualificado (${r.decisao}). A mensagem aprovada já sai pelo sistema.`, { handoff: true, textoFinal: sdr.textos[r.decisao] })
+    }
+    default:
+      await moverSdr(port, sdr.etapas.revisao)
+      await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
+      return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: sdr.textos.revisao_humana })
+  }
+}
+
+async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
+  const { port } = ctx
+  const cfg = CRM_MAP.agenda
+  const state = await port.getState()
+  if (state.analise?.decisao !== 'qualificado') return err('Só ofereça horário depois que analisar_contracheque devolver QUALIFICADO.')
+  const livres = horariosLivres(port.agoraS(), await port.horariosOcupados(), cfg)
+  const ofertados = state.ofertados || []
+  let opcoes = duasOpcoes(livres, cfg, ofertados)
+  if (!opcoes.length) opcoes = duasOpcoes(livres, cfg)
+  if (!opcoes.length) return err('Não há horário livre nos próximos dias. Diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano) com a fala do lead como evidência.')
+  await port.patchState({ ofertados: [...new Set([...ofertados, ...opcoes.map(o => o.inicio)])] })
+  const reserva = livres.filter(l => !opcoes.some(o => o.inicio === l.inicio)).slice(0, 6)
+  return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: quinta o dia todo, terça e quarta só à tarde.`)
+}
+
+async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolOutcome> {
+  const { port } = ctx
+  const cfg = CRM_MAP.agenda
+  const sdr = CRM_MAP.sdr
+  const state = await port.getState()
+  if (state.analise?.decisao !== 'qualificado') return err('Só agende depois que analisar_contracheque devolver QUALIFICADO.')
+  if (!evidenceFound(String(input.evidencia || ''), ctx.lastLeadText)) return err('O lead ainda não escolheu um horário nesta mensagem. Ofereça as opções e espere a resposta.')
+  const slot = slotDeIso(String(input.data_hora || ''), cfg)
+  if (!slot) return err('data_hora inválida. Use AAAA-MM-DDTHH:MM, horário de Brasília.')
+  if (!naGrade(slot, cfg)) return err(`${slot.rotulo} não está na agenda (quinta o dia todo, terça e quarta só à tarde). Chame consultar_horarios e ofereça as opções válidas.`)
+  if (slot.inicio < port.agoraS() + 3600) return err('Esse horário já passou ou é muito em cima. Ofereça outro com consultar_horarios.')
+  if (ocupado(slot, await port.horariosOcupados(), cfg) || !(await port.reservarHorario(slot.inicio))) {
+    return err(`${slot.rotulo} acabou de ser ocupado. Peça desculpas e chame consultar_horarios para oferecer outros.`)
+  }
+  const formato = input.formato === 'presencial' ? 'presencial' : 'online'
+  const onde = formato === 'presencial' ? `presencial na ${sdr.endereco}` : 'por videochamada aqui no WhatsApp'
+  await port.writeFields([{ field_id: sdr.campos.agendamento, values: [{ value: slot.inicio }] }])
+  await port.createTask(sdr.tarefas.tipoAgendamento, `Reunião ${formato} marcada pela Lia: ${slot.rotulo}. Análise: comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês.`, slot.inicio)
+  await moverSdr(port, sdr.etapas.agendada)
+  await aplicarFinalizacao(ctx, 'agendou', `Reunião ${formato} em ${slot.rotulo}.`)
+  return ok(`Reunião marcada: ${slot.rotulo}, ${formato}. A confirmação já sai pelo sistema.`, { handoff: true, textoFinal: `Fechado: ${slot.rotulo}, ${onde}. Até lá!` })
 }
 
 export async function runTool(ctx: ToolCtx, name: string, input: Record<string, unknown>): Promise<ToolOutcome> {
@@ -280,22 +444,15 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       case 'finalizar_atendimento': {
         const motivo = String(input.motivo || '') as Motivo
         if (!MOTIVOS.includes(motivo)) return err(`Motivo inválido: ${motivo}`)
-        const state = await port.getState()
-        if (motivo === 'qualificado') {
-          // "Não sabe" só vale se foi registrado por salvar_respostas com a fala do lead — nunca declarado na finalização
-          const sem = new Set(state.semResposta || [])
-          const faltando = porta.obrigatorios.filter(key => !state.respostas?.[key] && !(sem.has(key) && !campoByKey(key)?.options))
-          if (faltando.length) return err(`Ainda falta: ${faltando.map(key => campoByKey(key)?.name || key).join('; ')}. ${describeOpen(porta, snapshot(porta, state))} Se o lead disse que não sabe, grave com salvar_respostas usando a fala dele como evidência.`)
-        } else {
-          const ev = String(input.evidencia || '')
-          const sinal = SINAL_MOTIVO[motivo]
-          if (!evidenceFound(ev, ctx.leadText) || (sinal && !sinal.test(ev))) {
-            return err(`NÃO finalizado: a evidência "${ev}" não comprova "${motivo}" no que o lead escreveu. Continue o atendimento.`)
-          }
+        const ev = String(input.evidencia || '')
+        const sinal = SINAL_MOTIVO[motivo]
+        if (!evidenceFound(ev, ctx.leadText) || (sinal && !sinal.test(ev))) {
+          return err(`NÃO finalizado: a evidência "${ev}" não comprova "${motivo}" no que o lead escreveu. Continue o atendimento.`)
         }
         const urgente = motivo === 'urgencia'
         await aplicarFinalizacao(ctx, motivo, String(input.resumo || ''), urgente)
-        return ok(`Atendimento da IA finalizado (${motivo}). Envie a mensagem de encerramento prevista no prompt para este caso. NÃO faça perguntas e NÃO prometa contato em prazo específico.`, { handoff: true, urgente })
+        const comRetorno = CRM_MAP.sdr.tarefas.motivosComRetorno.includes(motivo)
+        return ok(`Atendimento da IA finalizado (${motivo}). Envie a mensagem de encerramento prevista no prompt para este caso. NÃO faça perguntas.${comRetorno ? ' A equipe responde em até 24 horas: diga isso ao lead.' : ' NÃO prometa contato em prazo específico.'}`, { handoff: true, urgente })
       }
 
       case 'mover_etapa': {
@@ -308,6 +465,10 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         if (lead.statusId !== etapa.id) await port.moveStage(etapa.id, etapa.pipelineId)
         return ok(`Lead em "${etapa.name}".`)
       }
+
+      case 'analisar_contracheque': return await analisar(ctx)
+      case 'consultar_horarios': return await consultarHorarios(ctx)
+      case 'agendar_reuniao': return await agendar(ctx, input)
 
       default:
         return err(`Tool desconhecida "${name}".`)

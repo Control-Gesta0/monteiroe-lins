@@ -105,8 +105,14 @@ async function main() {
     eq('qualificado com roteiro incompleto é recusado', out.isError, true)
   }
 
-  const extra = await import('./test-cliente').catch(() => null)
-  if (extra?.default) { const extras = await extra.default(eq); falhas += extras }
+  // Teste do cliente que quebra ao carregar é FALHA, não "sem testes" (o catch silencioso escondia isso)
+  try {
+    const extra = await import('./test-cliente')
+    if (extra?.default) { const extras = await extra.default(eq); falhas += extras }
+  } catch (e) {
+    falhas++
+    console.log(`❌ scripts/test-cliente.ts quebrou: ${e instanceof Error ? e.stack : String(e)}`)
+  }
 
   console.log(falhas ? `\n❌ ${falhas} falha(s)` : '\n✅ Todas as travas OK')
   process.exit(falhas ? 1 : 0)

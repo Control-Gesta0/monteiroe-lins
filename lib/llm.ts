@@ -84,6 +84,9 @@ export function createBrain(opts: LlmOptions) {
       state.respondenteNome ? `Quem está digitando: ${state.respondenteNome} (${state.respondenteRelacao || 'relação não informada'})` : 'Quem está digitando: não confirmado',
       snap.preenchidos.length ? `Já respondido (NUNCA pergunte de novo): ${snap.preenchidos.map(p => `${p.campo.name} = ${p.valor}`).join(' · ')}` : 'Já respondido: nada ainda',
       state.outroAssunto ? `Outro assunto já registrado: ${state.outroAssunto}` : '',
+      state.analise
+        ? `Análise do contracheque (feita pelo sistema, NÃO refaça a conta): ${state.analise.decisao} · comprometimento ${(state.analise.comprometimento * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% · redução estimada ${state.analise.reducaoMensal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}/mês`
+        : 'Análise do contracheque: ainda não feita',
       ...CRM_MAP.alertas.filter(a => a.re.test(ctx.lastLeadText)).map(a => `⚠️ ALERTA DO SISTEMA (${a.nome}): ${a.aviso}`),
       describeOpen(ctx.porta, snap),
     ].filter(Boolean)
@@ -140,6 +143,7 @@ export function createBrain(opts: LlmOptions) {
     const toolsUsed: string[] = []
     let handoff = false
     let urgente = false
+    let textoFinal = ''
     const tools = buildTools(ctx.porta)
     const messages: Msg[] = [...(await buildSystem(ctx, lead)), ...turns]
 
@@ -157,9 +161,12 @@ export function createBrain(opts: LlmOptions) {
           opts.onTool?.(tc.function.name, input, out)
           if (out.handoff) handoff = true
           if (out.urgente) urgente = true
+          if (out.textoFinal) textoFinal = out.textoFinal
           if (out.isError) console.warn(`[tool:${tc.function.name}] ${out.content}`)
           messages.push({ role: 'tool', tool_call_id: tc.id, content: out.content || '(sem retorno)' })
         }
+        // Texto aprovado pelo escritório: sai do código, sem o modelo reescrever
+        if (textoFinal) return { text: textoFinal, toolsUsed: [...toolsUsed, 'trava:texto-aprovado'], handoff, urgente, guard: [], usage }
         continue
       }
       const text = (choice.message?.content || '').trim()

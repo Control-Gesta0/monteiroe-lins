@@ -51,6 +51,10 @@ export function rotear(state: LeadState, textoTurno: string): Rota {
     if (achadas.length === 1) return { tipo: 'porta', porta: achadas[0], travou: true }
   }
 
+  // Sem menu (Monteiro & Lins): o que não tem sinal de outra porta vai para a porta padrão
+  const padrao = portaById(CRM_MAP.menu.portaPadrao)
+  if (padrao) return { tipo: 'porta', porta: padrao, travou: true }
+
   if (!state.menuEnviado) return { tipo: 'mensagem', texto: CRM_MAP.menu.texto, patch: { menuEnviado: true } }
   return { tipo: 'mensagem', texto: CRM_MAP.menu.naoEntendi, patch: {} }
 }

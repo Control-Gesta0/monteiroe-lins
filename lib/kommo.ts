@@ -112,3 +112,33 @@ export function fieldEnumIds(lead: KommoLead, fieldId: number): number[] {
   const f = (lead.custom_fields_values || []).find(v => v.field_id === fieldId)
   return (f?.values || []).map(v => v.enum_id).filter((x): x is number => typeof x === 'number')
 }
+
+// ---------- Monteiro & Lins: tarefas, agenda e perda ----------
+
+export async function createTask(t: { leadId: number; typeId: number; text: string; completeTill: number; responsibleUserId?: number }): Promise<void> {
+  await kommo('POST', '/api/v4/tasks', [{
+    task_type_id: t.typeId,
+    text: t.text.slice(0, 2000),
+    complete_till: Math.floor(t.completeTill),
+    entity_id: t.leadId,
+    entity_type: 'leads',
+    ...(t.responsibleUserId ? { responsible_user_id: t.responsibleUserId } : {}),
+  }])
+}
+
+/** Leads de um funil nas etapas pedidas (paginado). Usado para saber quais horários já têm reunião. */
+export async function leadsInStatuses(pipelineId: number, statusIds: number[]): Promise<KommoLead[]> {
+  const out: KommoLead[] = []
+  const filtro = statusIds.map((s, i) => `filter[statuses][${i}][pipeline_id]=${pipelineId}&filter[statuses][${i}][status_id]=${s}`).join('&')
+  for (let page = 1; page <= 10; page++) {
+    const r = await kommo<{ _embedded?: { leads?: KommoLead[] } }>('GET', `/api/v4/leads?limit=250&page=${page}&${filtro}`)
+    const leads = r._embedded?.leads || []
+    out.push(...leads)
+    if (leads.length < 250) break
+  }
+  return out
+}
+
+export async function markLeadLost(leadId: number, pipelineId: number, lossReasonId?: number): Promise<void> {
+  await kommo('PATCH', `/api/v4/leads/${leadId}`, { status_id: 143, pipeline_id: pipelineId, ...(lossReasonId ? { loss_reason_id: lossReasonId } : {}) })
+}

@@ -10,7 +10,8 @@ import { createBrain } from './llm'
 import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
-import { aplicarFinalizacao, type ToolCtx } from './tools'
+import { aplicarFinalizacao, moverSdr, type ToolCtx } from './tools'
+import { CRM_MAP } from './crm-map'
 import { sendReply } from './transport'
 
 /**
@@ -74,6 +75,12 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
       const textoTurno = bloco.map(m => m.text).join('\n')
       const state = await getState(leadId)
 
+      // 0. Quem já é cliente (lead fora do Funil/SDR ou depois da reunião) vai para "atendimento" (Monteiro & Lins)
+      if (!state.porta && (lead.pipeline_id !== CRM_MAP.sdr.pipelineId || CRM_MAP.etapasProtegidas.includes(lead.status_id))) {
+        state.porta = 'atendimento'
+        await patchState(leadId, { porta: 'atendimento', portaEm: bloco[0]?.ts ?? target.ts })
+      }
+
       // 1. Roteador em código
       const rota = rotear(state, textoTurno)
       if (rota.tipo === 'mensagem') {
@@ -85,7 +92,9 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
       }
       const porta = rota.porta
       if (rota.travou) {
-        await patchState(leadId, { porta: porta.id, portaEm: bloco[0]?.ts ?? target.ts, aguardandoResumo: false })
+        // Porta padrão (SDR) enxerga a conversa inteira: inclui o template de boas-vindas enviado antes da 1ª resposta do lead
+        const portaEm = porta.id === CRM_MAP.menu.portaPadrao ? 0 : bloco[0]?.ts ?? target.ts
+        await patchState(leadId, { porta: porta.id, portaEm, aguardandoResumo: false })
         console.log(`[roteador] lead ${leadId} → porta ${porta.id}`)
       }
       const portaEm = (await getState(leadId)).portaEm ?? 0
@@ -129,6 +138,11 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       const detail = await enviar(leadId, reply.text)
       await markAnswered(leadId, target.id)
+      // Primeira resposta da IA a um lead de entrada: passa para Qualificação (fail-closed)
+      if (!reply.handoff && porta.id === 'superendividamento') {
+        const l = await port.getLead()
+        if (l.statusId === CRM_MAP.sdr.etapas.entrada) await moverSdr(port, CRM_MAP.sdr.etapas.qualificacao)
+      }
       await logExec({
         tipo: reply.handoff ? 'finalizou' : 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0,
         tools: reply.toolsUsed, guard: reply.guard, usage: reply.usage, urgente: reply.urgente || undefined, detalhe: detail,

@@ -1,8 +1,8 @@
 {
-  "name": "agente-ia-kommo",
-  "version": "2.0.0",
+  "name": "lia-monteiro-lins",
+  "version": "0.1.0",
   "private": true,
-  "description": "Agente SDR de IA (Kommo, Desenho A/Salesbot) — OpenAI + Kommo v4 + Upstash Redis, sem n8n. Template Control Gestão.",
+  "description": "Lia: agente SDR de IA da Monteiro & Lins no Kommo (Desenho A/Salesbot). Base: template agente-ia-kommo v2 da Control Gestão.",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "tsx scripts/test-guards.ts",

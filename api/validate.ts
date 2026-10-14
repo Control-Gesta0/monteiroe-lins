@@ -66,6 +66,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         else if (s.name !== e.name) problems.push(`etapa ${e.id} renomeada: mapa="${e.name}" kommo="${s.name}"`)
       }
     }
+    // Monteiro & Lins: Funil/SDR, campos da Lia, tipos de tarefa e motivos de perda
+    const sdr = CRM_MAP.sdr
+    const pd = await kommoGet<{ _embedded?: { pipelines?: LivePipeline[] } }>('/api/v4/leads/pipelines')
+    const funil = (pd._embedded?.pipelines || []).find(x => x.id === sdr.pipelineId)
+    if (!funil) problems.push(`Funil/SDR ${sdr.pipelineId} não existe`)
+    const statusIds = new Set((funil?._embedded?.statuses || []).map(x => x.id))
+    for (const [nome, id] of Object.entries(sdr.etapas)) if (!statusIds.has(id)) problems.push(`etapa sdr.${nome} (${id}) não existe no Funil/SDR`)
+    for (const id of [...sdr.etapasDaIA, ...CRM_MAP.agenda.etapasOcupadas]) if (!statusIds.has(id)) problems.push(`etapa ${id} (alçada/agenda) não existe no Funil/SDR`)
+    const tipos: Record<number, string> = { [sdr.campos.agendamento]: 'date_time', [sdr.campos.resumo]: 'textarea', [sdr.campos.corporacao]: 'select' }
+    for (const [id, tipo] of Object.entries(tipos)) {
+      const lf = live.get(Number(id))
+      if (!lf) problems.push(`campo ${id} (${tipo}) da Lia não existe`)
+      else if (lf.type !== tipo) problems.push(`campo ${id} "${lf.name}" é ${lf.type}, a Lia espera ${tipo}`)
+    }
+    const corp = live.get(sdr.campos.corporacao)
+    for (const c of sdr.corporacaoPorOrgao) if (corp && !(corp.enums || []).some(e => e.id === c.enumId)) problems.push(`Corporação: enum ${c.enumId} sumiu`)
+    const conta = await kommoGet<{ _embedded?: { task_types?: Array<{ id: number; name: string }> } }>('/api/v4/account?with=task_types')
+    const taskIds = new Set((conta._embedded?.task_types || []).map(t => t.id))
+    for (const id of [sdr.tarefas.tipoAgendamento, sdr.tarefas.tipoRetorno]) if (!taskIds.has(id)) problems.push(`tipo de tarefa ${id} não existe`)
+    const lr = await kommoGet<{ _embedded?: { loss_reasons?: Array<{ id: number }> } }>('/api/v4/leads/loss_reasons')
+    const lossIds = new Set((lr._embedded?.loss_reasons || []).map(x => x.id))
+    for (const [k, id] of Object.entries(sdr.desqualificacao.motivoPerda)) if (!lossIds.has(id)) problems.push(`motivo de perda ${k} (${id}) não existe`)
+    if (!sdr.desqualificacao.moverParaPerdido) avisos.push('Rampagem: desqualificados ficam em Qualificação com a tag lia-desqualificou (moverParaPerdido = false).')
   } catch (e) {
     problems.push(`falha ao consultar o Kommo: ${e instanceof Error ? e.message : String(e)}`)
   }
