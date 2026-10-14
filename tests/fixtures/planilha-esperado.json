@@ -1,0 +1,147 @@
+{
+ "1_qualifica_comprometimento": {
+  "rendaBruta": 11600,
+  "descontosObrigatorios": 3336.83,
+  "rendaLiquida": 8263.17,
+  "emprestimoConsignado": 4510.9,
+  "cartaoConsignado": 412.2,
+  "cartaoBeneficio": 0,
+  "totalConsignacoes": 4923.1,
+  "comprometimento": 0.595788299163638,
+  "reducaoTeseA": 1617.832,
+  "reducaoTeseB": 1618.7905,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "EMPRÉSTIMO CONSIGNADO",
+   "EMPRÉSTIMO CONSIGNADO",
+   "CARTÃO CONSIGNADO"
+  ]
+ },
+ "2_renda_abaixo": {
+  "rendaBruta": 7000,
+  "descontosObrigatorios": 1370,
+  "rendaLiquida": 5630,
+  "emprestimoConsignado": 2600,
+  "cartaoConsignado": 0,
+  "cartaoBeneficio": 0,
+  "totalConsignacoes": 2600,
+  "comprometimento": 0.461811722912966,
+  "reducaoTeseA": 348,
+  "reducaoTeseB": 629.5,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "EMPRÉSTIMO CONSIGNADO"
+  ]
+ },
+ "3_qualifica_credcesta_manual": {
+  "rendaBruta": 11200,
+  "descontosObrigatorios": 2732,
+  "rendaLiquida": 8468,
+  "emprestimoConsignado": 900,
+  "cartaoConsignado": 0,
+  "cartaoBeneficio": 1250,
+  "totalConsignacoes": 2150,
+  "comprometimento": 0.253897024090694,
+  "reducaoTeseA": 0,
+  "reducaoTeseB": 0,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "CARTÃO BENEFÍCIO",
+   "EMPRÉSTIMO CONSIGNADO"
+  ]
+ },
+ "4_alivio_baixo": {
+  "rendaBruta": 11800,
+  "descontosObrigatorios": 3000,
+  "rendaLiquida": 8800,
+  "emprestimoConsignado": 3400,
+  "cartaoConsignado": 400,
+  "cartaoBeneficio": 0,
+  "totalConsignacoes": 3800,
+  "comprometimento": 0.431818181818182,
+  "reducaoTeseA": 280,
+  "reducaoTeseB": 320,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "EMPRÉSTIMO CONSIGNADO",
+   "EMPRÉSTIMO CONSIGNADO",
+   "CARTÃO CONSIGNADO"
+  ]
+ },
+ "5_rubrica_revisar": {
+  "rendaBruta": 12500,
+  "descontosObrigatorios": 3275,
+  "rendaLiquida": 9225,
+  "emprestimoConsignado": 3800,
+  "cartaoConsignado": 700,
+  "cartaoBeneficio": 650,
+  "totalConsignacoes": 5150,
+  "comprometimento": 0.558265582655827,
+  "reducaoTeseA": 1460,
+  "reducaoTeseB": 1460,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "REVISAR",
+   "EMPRÉSTIMO CONSIGNADO",
+   "CARTÃO BENEFÍCIO",
+   "CARTÃO CONSIGNADO"
+  ]
+ },
+ "6_tese_B_diferente": {
+  "rendaBruta": 12600,
+  "descontosObrigatorios": 4886,
+  "rendaLiquida": 7714,
+  "emprestimoConsignado": 3300,
+  "cartaoConsignado": 200,
+  "cartaoBeneficio": 900,
+  "totalConsignacoes": 4400,
+  "comprometimento": 0.570391495981333,
+  "reducaoTeseA": 1314.4,
+  "reducaoTeseB": 1500.1,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "CARTÃO BENEFÍCIO",
+   "EMPRÉSTIMO CONSIGNADO",
+   "CARTÃO CONSIGNADO",
+   "DESCONTO OBRIGATÓRIO"
+  ]
+ },
+ "7_tudo_dentro_margem": {
+  "rendaBruta": 12000,
+  "descontosObrigatorios": 3120,
+  "rendaLiquida": 8880,
+  "emprestimoConsignado": 1500,
+  "cartaoConsignado": 0,
+  "cartaoBeneficio": 0,
+  "totalConsignacoes": 1500,
+  "comprometimento": 0.168918918918919,
+  "reducaoTeseA": 0,
+  "reducaoTeseB": 0,
+  "classes": [
+   "PROVENTO",
+   "PROVENTO",
+   "DESCONTO OBRIGATÓRIO",
+   "DESCONTO OBRIGATÓRIO",
+   "EMPRÉSTIMO CONSIGNADO"
+  ]
+ }
+}
