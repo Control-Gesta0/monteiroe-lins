@@ -90,9 +90,9 @@ contracheque incompleto, ou rubrica não
 reconhecida que poderia virar o jogo    → revisao_humana (equipe responde em até 24h)
 ```
 
-**Três decisões que tomei no código (confirme ou mude, é uma linha cada em `PARAMETROS`):**
+**Três decisões no código (cada uma é uma linha em `PARAMETROS`):**
 
-1. **Qual redução vale para a regra dos R$ 1.000:** usei o **Cenário A (40%)**, que é sempre o menor dos dois. É o número mais seguro para a IA citar ao lead, porque a planilha diz que o Cenário B depende do juiz aceitar a tese. Se preferirem usar o mais favorável, é trocar `tese: 'A'` por `'melhor'`.
+1. **Qual redução vale para a regra dos R$ 1.000:** **Cenário A (teto global de 40%)**, confirmado pelo escritório em 14/10/2026. É sempre o menor dos dois cenários, e é o valor que a Lia cita ao lead (`tese: 'A'` em `PARAMETROS`).
 2. **Credcesta:** a aba REGRAS não tem a palavra "CREDCESTA", então na planilha essa rubrica cai em REVISAR e fica fora da conta. No código acrescentei "CREDCESTA" como cartão benefício. **Sugiro acrescentar a mesma linha na aba REGRAS da planilha**, senão o comercial e a IA vão chegar em números diferentes.
 3. **Rubrica desconhecida:** se o lead não passou na regra, mas alguma rubrica caiu em REVISAR e poderia fazer ele passar (se fosse consignação ou desconto obrigatório), a IA não desqualifica: manda para a equipe. Assim a IA nunca perde um lead por causa de uma descrição que a lista não conhecia.
 
@@ -160,18 +160,17 @@ As credenciais ficam só nas variáveis de ambiente da Vercel. Nada disso entra 
 
 ## 6. Perguntas para o escritório
 
-Respondidas em 14/10: nome da IA (**Lia**), planilha de qualificação, Credcesta qualifica sozinho (sim), "até 24h" (prazo de resposta da equipe para quem pergunta do processo ou pede atendimento), dias de reunião (quinta o dia todo, terça e quarta à tarde).
+Respondidas em 14/10: nome da IA (**Lia**), tese da redução (**Cenário A, 40%**), planilha de qualificação, Credcesta qualifica sozinho (sim), "até 24h" (prazo de resposta da equipe para quem pergunta do processo ou pede atendimento), dias de reunião (quinta o dia todo, terça e quarta à tarde).
 
 Ainda faltam:
 
 1. **Fundador:** nome e corporação do policial que fundou o escritório (a Lia cita em toda primeira mensagem).
 2. **Agenda:** o acesso à agenda prometido, para a Lia consultar horário livre de verdade. Até lá ela usa a grade da seção 7 do prompt. Qual o tamanho do bloco (30 min?) e quem é o advogado da reunião?
-3. **Tese da redução:** a regra dos R$ 1.000 usa o Cenário A (40%, o mais conservador) ou o mais favorável? (seção 2)
-4. **Explicação da ação:** a planilha trabalha com o Decreto 50.516/2026 (teto de 40%), e os modelos de mensagem antigos falam em limite de 30% e prazo de 6 a 7 meses. Qual explicação e qual prazo a Lia deve dar hoje?
-5. **Perfis fora:** pensionista, Marinha/Aeronáutica/Exército e Guarda Municipal ficam de fora? (há motivos de perda para eles)
-6. **Honorários:** confirmar que a Lia nunca fala valor.
-7. **Conversas reais:** de 5 a 10 prints de conversa boa do comercial, para entrar como exemplo de tom.
-8. **Repescar (1.557 leads):** querem uma campanha de recuperação da Lia sobre essa base depois que o atendimento de entrada estiver rodando?
+3. **Explicação da ação:** a planilha trabalha com o Decreto 50.516/2026 (teto de 40%), e os modelos de mensagem antigos falam em limite de 30% e prazo de 6 a 7 meses. Qual explicação e qual prazo a Lia deve dar hoje?
+4. **Perfis fora:** pensionista, Marinha/Aeronáutica/Exército e Guarda Municipal ficam de fora? (há motivos de perda para eles)
+5. **Honorários:** confirmar que a Lia nunca fala valor.
+6. **Conversas reais:** de 5 a 10 prints de conversa boa do comercial, para entrar como exemplo de tom.
+7. **Repescar (1.557 leads):** querem uma campanha de recuperação da Lia sobre essa base depois que o atendimento de entrada estiver rodando?
 
 ## 7. Evals antes de subir (10/10 ou não sobe)
 

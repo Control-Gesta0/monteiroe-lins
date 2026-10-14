@@ -68,3 +68,9 @@ test('tese configurável muda a redução citada', () => {
   const b = analisarContracheque(r, { ...PARAMETROS, tese: 'B' }).reducaoMensal;
   assert.ok(b >= a);
 });
+
+test('a redução citada ao lead é a do Cenário A (40%), decisão do escritório em 14/10/2026', () => {
+  assert.equal(PARAMETROS.tese, 'A');
+  const r = analisarContracheque(rubricas(cenarios['1_qualifica_comprometimento']));
+  assert.ok(Math.abs(r.reducaoMensal - esperado['1_qualifica_comprometimento'].reducaoTeseA) < 0.005);
+});

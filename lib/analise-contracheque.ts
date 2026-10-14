@@ -40,7 +40,8 @@ export const PARAMETROS = {
   reducaoMinima: 1_000, // e redução mensal MAIOR que R$ 1.000
   cartaoBeneficioMinimo: 1_000, // OU cartão benefício (Credcesta) somando MAIS que R$ 1.000
   // Qual redução vale para a regra e para a mensagem ao lead.
-  // 'A' = teto global de 40% (a menor das duas, conservadora). 'B' = 35% + 5%. 'melhor' = a maior.
+  // 'A' = teto global de 40% (a menor das duas). Escolhida pelo escritório em 14/10/2026.
+  // 'B' = 35% + 5%. 'melhor' = a maior.
   tese: 'A' as Tese,
 };
 
