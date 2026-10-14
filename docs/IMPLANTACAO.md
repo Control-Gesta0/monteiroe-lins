@@ -51,7 +51,10 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 2. **Rodar os evals:** `EVAL_REPS=3 npm run evals` → 10 cenários aprovados nas 3 rodadas.
 3. 🙋 **Fundador:** nome e corporação para o `prompts/nucleo.md` (a Lia cita na primeira mensagem). Rodar os evals de novo depois.
 4. ✅ **Campo de resposta:** "Resposta IA (Lia)" criado no lead pela API em 14/10/2026 (ID `1128813`, textarea) e já está em `CRM_MAP.respostaFieldId`.
-5. 🙋 **Salesbot de envio** (só pela tela do Kommo): um bot com um passo "Enviar mensagem" cujo texto é o campo do lead "Resposta IA (Lia)". Anotar o ID do bot em `KOMMO_BOT_ID`.
+5. 🙋 **Salesbot de envio** (só pela tela do Kommo; a API `/api/v4/bots` lista os bots mas não cria nem mostra os passos):
+   - criar um Salesbot com o nome **`Lia · envio`**, sem gatilho próprio (quem dispara é o código, pelo `salesbot/run`);
+   - um único passo **Enviar mensagem**, com o texto = marcador do lead **Resposta IA (Lia)** (escolher pelo botão de marcadores);
+   - salvar e deixar ativo. O ID eu pego pela API (`GET /api/v4/bots`, procurando o nome) e coloco em `KOMMO_BOT_ID`.
 6. 🙋 **Template de boas-vindas no WhatsApp (Meta)**, para lead de formulário que ainda não mandou mensagem. Sugestão (o trecho "Aqui é a Lia, assistente virtual" precisa ficar igual, é como o sistema reconhece que não foi uma pessoa):
    > Oi, {{1}}! Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. O escritório foi fundado por um policial e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
 7. 🙋 **Digital Pipeline** em "Leads de entrada" do Funil/SDR: pôr a tag `lia` e enviar o template acima. Na rampagem, só para os leads escolhidos.
@@ -62,6 +65,13 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 12. **Rampagem:** 1 lead → 10 → todos. Nas duas primeiras semanas, desqualificados ficam em Qualificação com a tag `lia-desqualificou` para o comercial conferir. Depois de 20 casos batendo com a planilha: `sdr.desqualificacao.moverParaPerdido = true`.
 
 ## Pontos de atenção
+
+- **Bots que já existem na conta (42, lidos em 14/10/2026).** Conferir na tela, antes de ligar a Lia, o gatilho destes, que estão ativos e podem responder ao mesmo lead (um número, um agente):
+  - `Fora de horário` (93081): se responde mensagem recebida fora do horário, vai responder junto com a Lia;
+  - `bOT - TRÁFEGO - LEC` (93083): provavelmente atende os leads do formulário "[LEC]", os mesmos da Lia;
+  - `Saudações` (83057) e `Mensagem Qualificação` (84399): ver se disparam em "Leads de entrada" ou "Qualificação".
+  Os lembretes `reunião 24h / 4h / 1h` e `Reunião Agendada – D-1 / D-0` podem continuar: a Lia só move o lead para Reunião Agendada e para de falar.
+- **Já existem bots "Lia" no funil Empresarial** (`Boas vindas gestão de passivos Lia`, `LIA - Valor baixo`, `LIA - Divida em dia`). Usar outra frase na boas-vindas desse funil ou garantir que nenhuma delas tenha "Aqui é a Lia, assistente virtual", senão o sistema trata como mensagem automática e a IA não recua quando um humano falar.
 
 - **Agenda:** enquanto a agenda real não é ligada, a Lia usa a grade fixa do `crm-map.ts` e considera ocupado o horário de qualquer lead em Reunião Agendada/Presencial com o campo Agendamento. Reunião marcada fora do Kommo não aparece para ela.
 - **Quem já é cliente:** só recebe a mensagem de 24h se o lead dele tiver a tag `lia`. Para atender os funis de clientes, a tag precisa entrar por automação nesses funis também (decisão do escritório).
