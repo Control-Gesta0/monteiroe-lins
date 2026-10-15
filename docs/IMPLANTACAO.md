@@ -62,6 +62,7 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
    - deixar a tela de consentimento **em produção** (em "teste", o Google derruba a autorização em 7 dias) e a Google Calendar API ativada no projeto;
    - quem tem acesso de edição à agenda abre o link de conexão (passo a Control Gestão) e clica em Permitir. O `/api/validate` passa a mostrar "Google Agenda ligada".
 10. ✅ **Webhook:** `add_message` criado pela API em 15/10/2026 (ID `47515220`), apontando para `/api/inbound` com o secret. Era o único webhook da conta. Toda mensagem da conta passa pelo agente e fica no histórico do Redis (90 dias); só lead com a tag `lia` recebe resposta.
+10b. ✅ **Central v5:** projeto Vercel `central-monteiro-lins` (pasta `central/`), em **https://central-monteiro-lins.vercel.app**, senha do painel definida pelo escritório (variável `APP_PASSWORD`). Provado no ar em 15/10/2026: sem login vai para `/login`, senha errada é recusada, as 7 telas abrem com dados reais (sem modo demonstração), o Teste respondeu como a Lia sem tocar no Kommo, o Ensinar gerou rascunho pelo curador e o "descartar tudo" limpou (base no ar seguiu na versão 0). As APIs do painel dão 401 sem cookie e o `/api/central` e o `/api/base` do agente dão 401 sem o secret ou com secret errado. O funil conta os leads das etapas abertas e os ganhos e perdidos dos últimos 30 dias.
 11. **E2E com número real:** lead de teste com a tag `lia` e o ID em `TEST_LEAD_IDS`. Mandar contracheque de teste, conferir mensagem no celular, card (nota da análise, Agendamento, tarefa, etapa) e `/api/executions`. `reset` recomeça.
 12. **Rampagem:** 1 lead → 10 → todos. Nas duas primeiras semanas, desqualificados ficam em Qualificação com a tag `lia-desqualificou` para o comercial conferir. Depois de 20 casos batendo com a planilha: `sdr.desqualificacao.moverParaPerdido = true`.
 
@@ -76,5 +77,5 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 
 - **Agenda:** enquanto a agenda real não é ligada, a Lia usa a grade fixa do `crm-map.ts` e considera ocupado o horário de qualquer lead em Reunião Agendada/Presencial com o campo Agendamento. Reunião marcada fora do Kommo não aparece para ela.
 - **Quem já é cliente:** só recebe a mensagem de 24h se o lead dele tiver a tag `lia`. Para atender os funis de clientes, a tag precisa entrar por automação nesses funis também (decisão do escritório).
-- **Leads em Repescar (1.557):** estão na lista de etapas protegidas, então a Lia trata como atendimento. Uma campanha de recuperação precisa de porta própria.
+- **Leads em Repescar (1.736 em 15/10/2026):** estão na lista de etapas protegidas, então a Lia trata como atendimento. Uma campanha de recuperação precisa de porta própria.
 - **Planilha:** se o escritório mudar a planilha, refazer a prova de `docs/analise-base-kommo.md` seção 8 e rodar `npm test`.
