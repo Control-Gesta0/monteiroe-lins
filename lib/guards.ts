@@ -95,3 +95,16 @@ export function keepLastQuestion(text: string, lastLead = ''): string | null {
 }
 
 export const DISSE_NAO_SEI = /n[aã]o sei|sei l[aá]|n[aã]o lembro|n[aã]o fa[cç]o ideia|n[aã]o tenho certeza/i
+
+/**
+ * Mascara dado pessoal antes de gravar no diário (a Central mostra as conversas):
+ * CPF, CNPJ, telefone e e-mail viram [cpf], [cnpj], [telefone], [email].
+ * Valor em reais e porcentagem ficam (são o resultado da análise).
+ */
+export function mascararPII(texto: string): string {
+  return String(texto || '')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[email]')
+    .replace(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g, '[cnpj]')
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[cpf]')
+    .replace(/(?:\+?55\s?)?\(?\b\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b/g, '[telefone]')
+}

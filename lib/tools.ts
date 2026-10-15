@@ -7,6 +7,7 @@ import type { LeadState } from './state'
 import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
 import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
 import { extrairContracheque } from './contracheque-texto'
+import { PADRAO_CODIGO, confirmacao, type Textos } from './base-core'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -46,7 +47,11 @@ export interface ToolCtx {
   lastLeadText: string
   /** última mensagem do escritório antes do turno (a pergunta respondida) */
   lastAgentText: string
+  /** textos da base vigente (Central › Ensinar); sem isso, os padrões do código */
+  textos?: Partial<Textos>
 }
+
+const texto = (ctx: ToolCtx, id: 'enc_renda_abaixo' | 'enc_alivio_baixo' | 'enc_revisao' | 'enc_atendimento') => ctx.textos?.[id] ?? PADRAO_CODIGO[id]!
 
 export interface ToolOutcome {
   content: string
@@ -335,12 +340,12 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
         const lead = await port.getLead()
         if (lead.pipelineId === sdr.pipelineId && sdr.etapasDaIA.includes(lead.statusId)) await port.markLost(sdr.desqualificacao.motivoPerda[r.decisao])
       }
-      return ok(`Desqualificado (${r.decisao}). A mensagem aprovada já sai pelo sistema.`, { handoff: true, textoFinal: sdr.textos[r.decisao] })
+      return ok(`Desqualificado (${r.decisao}). A mensagem aprovada já sai pelo sistema.`, { handoff: true, textoFinal: texto(ctx, r.decisao === 'renda_abaixo' ? 'enc_renda_abaixo' : 'enc_alivio_baixo') })
     }
     default:
       await moverSdr(port, sdr.etapas.revisao)
       await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
-      return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: sdr.textos.revisao_humana })
+      return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: texto(ctx, 'enc_revisao') })
   }
 }
 
@@ -399,7 +404,7 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   await port.createTask(sdr.tarefas.tipoAgendamento, `Reunião ${formato} marcada pela Lia: ${slot.rotulo}. Análise: comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês.`, slot.inicio)
   await moverSdr(port, sdr.etapas.agendada)
   await aplicarFinalizacao(ctx, 'agendou', `Reunião ${formato} em ${slot.rotulo}.`)
-  return ok(`Reunião marcada: ${slot.rotulo}, ${formato}. A confirmação já sai pelo sistema.`, { handoff: true, textoFinal: `Fechado: ${slot.rotulo}, ${onde}. Até lá!` })
+  return ok(`Reunião marcada: ${slot.rotulo}, ${formato}. A confirmação já sai pelo sistema.`, { handoff: true, textoFinal: confirmacao(ctx.textos || {}, slot.rotulo, onde) })
 }
 
 export async function runTool(ctx: ToolCtx, name: string, input: Record<string, unknown>): Promise<ToolOutcome> {

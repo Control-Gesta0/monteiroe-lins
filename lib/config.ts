@@ -41,4 +41,8 @@ export const CONFIG = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleCalendarId: process.env.GOOGLE_CALENDAR_ID || '',
   googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || '',
+
+  // Central v5: segredo próprio da Central (sem ele, vale o WEBHOOK_SECRET) e câmbio do custo
+  centralSecret: process.env.CENTRAL_SECRET || '',
+  usdBrl: Number(process.env.COST_USD_BRL || 5.5),
 }

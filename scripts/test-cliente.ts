@@ -221,6 +221,64 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('cliente: tarefa de retorno em 24h e IA desligada', [w.tasks[0]?.completeTill, w.tags.has('lia')], [quartaManha + 24 * 3600, false])
     eq('cliente: mensagem fixa fala das 24h', /até 24 horas/.test(portaById('atendimento')!.mensagemSemAgente || ''), true)
   }
+  // ---------- 9. Central: diário → marcos (zero token) ----------
+  const { buildExecutionData, contarMarcos, toExecution } = await import('../lib/central-data')
+  const { mascararPII } = await import('../lib/guards')
+  eq('central: máscara de CPF, telefone e e-mail', mascararPII('cpf 123.456.789-09, zap (21) 99876-5432, a@b.com, parcela R$ 1.617'), 'cpf [cpf], zap [telefone], [email], parcela R$ 1.617')
+  const agora = Date.parse('2026-10-15T15:00:00Z')
+  const ex = (h: number, leadId: number, o: Record<string, unknown>) => ({ at: new Date(agora - h * 3600_000).toISOString(), leadId, tipo: 'resposta', ...o }) as any
+  const diario = [
+    ex(1, 1, { perfil: 'nao_cliente', decisao: 'qualificado' }),
+    ex(0.5, 1, { tipo: 'finalizou', perfil: 'nao_cliente', motivo: 'agendou' }),
+    ex(2, 2, { tipo: 'finalizou', perfil: 'nao_cliente', decisao: 'renda_abaixo', motivo: 'renda_abaixo' }),
+    ex(3, 3, { tipo: 'finalizou', perfil: 'cliente', motivo: 'porta_sem_agente', detalhe: 'Cliente perguntou da liminar · salesbot/run disparado' }),
+    ex(4, 4, { tipo: 'finalizou', perfil: 'nao_cliente', decisao: 'revisao_humana', motivo: 'revisao_humana' }),
+    ex(5, 5, { tipo: 'pulou' }),
+  ]
+  const m = contarMarcos(diario.map((e: any) => toExecution(e, 5.5)))
+  eq('central: marcos da Lia', m, { atendidos: 4, clientes: 1, naoClientes: 3, analisados: 3, qualificados: 1, agendados: 1, desqualificados: 1, passagens: 2 })
+  const dados = buildExecutionData(diario, 5.5, 'gpt-5.4-mini', agora, 'https://monteiroelinsadvocacia.kommo.com')
+  eq('central: passagens com resumo limpo e link do lead', dados.passagens.map(p => [p.rotulo, p.resumo, p.link]), [
+    ['Cliente do escritório', 'Cliente perguntou da liminar', 'https://monteiroelinsadvocacia.kommo.com/leads/detail/3'],
+    ['Contracheque para conferir', '', 'https://monteiroelinsadvocacia.kommo.com/leads/detail/4'],
+  ])
+
+  // ---------- 10. Base editável: sem edição, prompt byte a byte; edição só troca o bloco ----------
+  const bc = await import('../lib/base-core')
+  const ler = (f: string) => fs.readFileSync(path.join(__dirname, '..', 'prompts', f), 'utf8')
+  // tira os marcadores por um caminho independente do renderTemplate (split de string, sem a regex dele)
+  const semMarcadores = (t: string) => t.split(/<!-- base:[a-z_]+ -->\n?/).join('').split(/\n?<!-- \/base -->/).join('')
+  for (const f of ['nucleo.md', 'portas/superendividamento.md']) eq(`base: ${f} renderizado sem edição = arquivo sem marcadores`, bc.renderTemplate(ler(f)) === semMarcadores(ler(f)), true)
+  const padroes = bc.textosPadrao([ler('nucleo.md'), ler('portas/superendividamento.md')])
+  eq('base: todos os textos padrão passam nas travas', bc.ITENS.filter(i => bc.validarTexto(i.id, padroes[i.id]).length).map(i => i.id), [])
+  eq('base: texto de 24h do prompt = o do código', padroes.enc_atendimento, CRM_MAP.sdr.textos.atendimento)
+  const editado = bc.renderTemplate(ler('nucleo.md'), { escritorio: 'O escritório foi fundado pelo Cel. Teste, da PMERJ.' })
+  eq('base: edição troca só o bloco', [editado.includes('Cel. Teste'), editado.includes('[NOME E CORPORAÇÃO'), editado.includes('Rua da Quitanda, 19')], [true, false, true])
+  eq('base: trava barra "vai baixar" e 30%', bc.validarTexto('fatos', 'A parcela vai baixar e o juiz limita a 30% da renda.').length, 2)
+  eq('base: encerramento sem pergunta', bc.validarTexto('enc_revisao', 'A equipe confere, tudo bem?').length, 1)
+  eq('base: confirmação exige {horario} e {onde}', [bc.validarTexto('confirmacao', 'Fechado!').length, bc.confirmacao({}, 'quinta (16/10) às 10h', 'presencial')], [2, 'Fechado: quinta (16/10) às 10h, presencial. Até lá!'])
+  eq('base: informação acrescentada vira seção 7', bc.renderNucleo(ler('nucleo.md'), {}, [{ id: 'extra_abcd1234', titulo: 'Estacionamento', texto: 'Tem estacionamento rotativo na rua.' }]).includes('## 7. Informações cadastradas pela equipe do escritório\nUse quando'), true)
+
+  // ---------- 11. Curador (sem LLM): só troca exata e o que passa nas travas ----------
+  const { aplicar } = await import('../lib/curador')
+  const ap = aplicar({ mudancas: [{ tipo: 'trocar', id: 'escritorio', de: '[NOME E CORPORAÇÃO DO FUNDADOR]', para: 'o Cel. Teste, da PMERJ,' }] }, padroes, [])
+  eq('curador: troca exata do fundador', [ap.erros, ap.textos.escritorio.includes('o Cel. Teste, da PMERJ,'), ap.mudancas.length], [[], true, 1])
+  eq('curador: trecho que não existe é recusado', aplicar({ mudancas: [{ tipo: 'trocar', id: 'fatos', de: 'texto que não existe', para: 'x' }] }, padroes, []).erros.length, 1)
+  eq('curador: troca que promete resultado é barrada', aplicar({ mudancas: [{ tipo: 'trocar', id: 'golpe', de: 'Quer que eu te passe o registro na OAB?', para: 'A parcela vai baixar, garantido.' }] }, padroes, []).erros.length, 1)
+  const nv = aplicar({ mudancas: [{ tipo: 'nova', titulo: 'Estacionamento', texto: 'Tem estacionamento rotativo na Rua da Quitanda.' }] }, padroes, [])
+  eq('curador: informação nova vira extra', [nv.erros, nv.extras.length, /^extra_/.test(nv.extras[0]?.id || '')], [[], 1, true])
+
+  // ---------- 12. Conversas reais (do diário, para corrigir) ----------
+  const { listarConversas, turnosDoContato, contextoReal } = await import('../lib/conversas-reais')
+  const execsReais = [
+    { at: '2026-10-15T10:00:00Z', leadId: 7, nome: 'João', tipo: 'resposta', turnoLead: 'oi', respostaIA: 'Oi! Aqui é a Lia', tools: [] },
+    { at: '2026-10-15T10:05:00Z', leadId: 7, nome: 'João', tipo: 'finalizou', motivo: 'agendou', turnoLead: 'quinta 10h', respostaIA: 'Fechado: quinta (16/10) às 10h', tools: ['agendar_reuniao', 'trava:texto-aprovado'] },
+  ] as any[]
+  const lista = listarConversas(execsReais)
+  eq('reais: conversa listada com o motivo do fim', [lista[0].contato, lista[0].respostas, lista[0].passou], ['7', 2, 'agendou'])
+  const turnos = turnosDoContato(execsReais, '7')
+  eq('reais: contexto da correção', contextoReal(turnos, '2026-10-15T10:05:00Z')?.lead.split('\n').slice(0, 3), ['LEAD: oi', 'LIA: Oi! Aqui é a Lia', 'LEAD: quinta 10h'])
+
   // ---------- 8. Boas-vindas do Salesbot não pausa a IA; humano pausa ----------
   const automatica = (t: string) => CRM_MAP.saidasAutomaticas.some(re => re.test(t))
   eq('saída: template de boas-vindas com nome é automático', automatica('Oi, João! Aqui é a Lia, assistente virtual da Monteiro & Lins.'), true)

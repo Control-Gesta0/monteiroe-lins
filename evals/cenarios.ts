@@ -2,7 +2,8 @@
  * CENÁRIOS DA LIA (patch). Rodar com a chave da OpenAI: EVAL_REPS=3 npm run evals
  * Todos aprovados nas 3 repetições ou o prompt não sobe.
  */
-import type { Cenario, World } from '../scripts/evals'
+import type { Cenario, World } from '../lib/evals-runner'
+import { PADRAO_CODIGO, trouxeTexto, type Textos } from '../lib/base-core'
 
 type T = Array<{ resposta: string; tools: string[]; handoff: boolean; guard: string[] }>
 const umaPergunta = { nome: 'no máximo 1 pergunta por resposta', fn: (_w: World, t: T) => t.every(x => (x.resposta.match(/\?/g) || []).length <= 1) }
@@ -36,7 +37,10 @@ const CONTRACHEQUE_RENDA_BAIXA = [
 const ABERTURA = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins. O escritório foi fundado por um policial e cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
 const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
-export const CENARIOS: Cenario[] = [
+/** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */
+export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
+  const t = { ...PADRAO_CODIGO, ...textos } as Textos
+  return [
   {
     id: 'abertura',
     porta: 'superendividamento',
@@ -106,10 +110,10 @@ export const CENARIOS: Cenario[] = [
     msgs: [CONTRACHEQUE_RENDA_BAIXA],
     checks: [
       usou('analisar_contracheque'), naoUsou('consultar_horarios'),
-      { nome: 'manda o texto aprovado da Defensoria', fn: (_w: World, t: T) => /Defensoria Pública do RJ/.test(t[0].resposta) && t[0].handoff },
+      { nome: 'manda o texto aprovado de renda abaixo', fn: (_w: World, x: T) => trouxeTexto(x[0].resposta, t.enc_renda_abaixo) && x[0].handoff },
       { nome: 'marca lia-desqualificou', fn: (w: World) => w.tags.has('lia-desqualificou') },
     ],
-    criterios: ['Encerra com respeito, indicando a Defensoria Pública, sem pergunta no fim'],
+    criterios: ['Encerra com respeito, sem pressionar e sem pergunta no fim'],
   },
   {
     id: 'pede-sexta',
@@ -133,7 +137,7 @@ export const CENARIOS: Cenario[] = [
       usou('consultar_horarios'), usou('agendar_reuniao'),
       { nome: 'lead em Reunião Agendada', fn: (w: World) => w.statusId === 85921951 },
       { nome: 'tarefa Agendamento IA criada', fn: (w: World) => w.tasks.some(x => x.typeId === 4231636) },
-      { nome: 'confirmação pelo código', fn: (_w: World, t: T) => /^Fechado: (terça|quarta|quinta) \(\d{2}\/\d{2}\) às \d{1,2}h/.test(t[t.length - 1].resposta) },
+      { nome: 'confirmação pelo código, com dia e hora', fn: (_w: World, x: T) => x[x.length - 1].handoff && /(terça|quarta|quinta) \(\d{2}\/\d{2}\) às \d{1,2}h/.test(x[x.length - 1].resposta) && trouxeTexto(x[x.length - 1].resposta, t.confirmacao.replace(/\{\w+\}/g, '')) },
     ],
     criterios: ['Na primeira resposta oferece dois horários; na segunda confirma dia, hora e formato online, sem pergunta'],
   },
@@ -157,3 +161,6 @@ export const CENARIOS: Cenario[] = [
     criterios: ['Aceita sem insistir e diz que a equipe responde por ali em até 24 horas, sem pergunta no fim'],
   },
 ]
+}
+
+export const CENARIOS = cenarios()

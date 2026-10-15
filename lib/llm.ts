@@ -6,6 +6,7 @@ import { addUsage, emptyUsage, type Usage } from './execlog'
 import { checkReply, keepLastQuestion, semTravessao, type Violation } from './guards'
 import type { ChatMsg } from './history'
 import { aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
+import { renderTemplate } from './base-core'
 
 /**
  * Cérebro: GPT-5.4 Mini (Chat Completions, reasoning none) com loop próprio de
@@ -66,8 +67,9 @@ export function createBrain(opts: LlmOptions) {
   const openai = new OpenAI({ apiKey: opts.apiKey })
 
   const promptOf = (porta: Porta) => {
-    const nucleo = opts.promptOverride?.nucleo ?? loadPromptFile('nucleo.md')
-    const portaTxt = porta.promptFile ? (opts.promptOverride?.portas?.[porta.id] ?? loadPromptFile(`portas/${porta.promptFile}`)) : ''
+    // Sem override (base), os marcadores <!-- base:… --> saem e fica o texto padrão: nunca chegam ao modelo
+    const nucleo = opts.promptOverride?.nucleo ?? renderTemplate(loadPromptFile('nucleo.md'))
+    const portaTxt = porta.promptFile ? (opts.promptOverride?.portas?.[porta.id] ?? renderTemplate(loadPromptFile(`portas/${porta.promptFile}`))) : ''
     return `${nucleo.trim()}\n\n---\n\n${portaTxt.trim()}`
   }
 

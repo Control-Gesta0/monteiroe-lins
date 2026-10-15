@@ -1,151 +1,40 @@
 /**
- * O EXAME DO CÉREBRO — roda os prompts LOCAIS com as tools REAIS numa porta em
- * memória (zero efeito no CRM). Cenários em evals/cenarios.ts (patch do cliente).
+ * O EXAME DO CÉREBRO (linha de comando). O executor mora em lib/evals-runner.ts
+ * e é o mesmo que o botão Publicar da Central usa (lib/exame.ts).
  *
- * Cada cenário: checagens em CÓDIGO (tool, campo gravado, finalização, trava) +
- * critérios para um juiz cego. Portão: qualquer checagem falhando ou critério
- * reprovado → exit 1. Rode com 3 repetições antes de publicar (comum §49).
- *
- *   npx tsx scripts/evals.ts                  # todos, 1 rodada
- *   npx tsx scripts/evals.ts bpc urgencia     # filtra por id
- *   EVAL_REPS=3 npx tsx scripts/evals.ts
+ *   npm run evals                        # todos, 1 rodada
+ *   npx tsx scripts/evals.ts golpe agenda   # filtra por id
+ *   EVAL_REPS=3 npm run evals
  */
 import { loadEnv } from './env'
 
 loadEnv()
 for (const [key, val] of Object.entries({ KOMMO_DOMAIN: 'https://eval.kommo.com', KOMMO_TOKEN: 'x', KOMMO_ACCOUNT_ID: '1', UPSTASH_REDIS_REST_URL: 'https://x.upstash.io', UPSTASH_REDIS_REST_TOKEN: 'x', WEBHOOK_SECRET: 'x' })) process.env[key] ||= val
 
-export interface World {
-  tasks: Array<{ typeId: number; text: string; completeTill: number }>
-  lost?: number | null
-  /** reuniões já marcadas na conta (epoch s) */
-  ocupados: number[]
-  /** "agora" do cenário (epoch s): deixa a agenda determinística */
-  agoraS: number
-  statusId: number
-  pipelineId: number
-  fields: Record<number, { value?: unknown; enumIds: number[] }>
-  tags: Set<string>
-  notes: string[]
-  state: Record<string, any>
-  log: string[]
-}
-
-export interface Turno { lead: string; resposta: string; tools: string[]; guard: string[]; handoff: boolean }
-
-export interface Cenario {
-  id: string
-  porta: string
-  nomeContato?: string
-  /** conversa anterior na porta (já travada) */
-  historico?: Array<['in' | 'out', string]>
-  state?: Record<string, any>
-  /** Monteiro & Lins: onde o lead está (padrão: Funil/SDR, Qualificação) e agenda já ocupada */
-  statusId?: number
-  pipelineId?: number
-  ocupados?: number[]
-  msgs: string[]
-  checks: Array<{ nome: string; fn: (w: World, t: Turno[]) => boolean }>
-  criterios: string[]
-}
+export type { Cenario, Turno, World } from '../lib/evals-runner'
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) { console.error('OPENAI_API_KEY ausente no .env.local'); process.exit(1) }
-  const { createBrain } = await import('../lib/llm')
-  const { portaById } = await import('../lib/crm-map')
-  const { costUsd } = await import('../lib/execlog')
-  const OpenAI = (await import('openai')).default
-  const { CENARIOS } = await import('../evals/cenarios')
-  type LeadPort = import('../lib/tools').LeadPort
-  type ChatMsg = import('../lib/history').ChatMsg
-
+  const { runEvals } = await import('../lib/evals-runner')
+  const { cenarios } = await import('../evals/cenarios')
   const MODEL = process.env.LLM_MODEL || 'gpt-5.4-mini-2026-03-17'
-  const JUDGE = process.env.EVAL_JUDGE_MODEL || 'gpt-5.4-2026-03-05'
   const REPS = Number(process.env.EVAL_REPS || 1)
   const filtros = process.argv.slice(2)
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  let mundoAtual: World | null = null
-  const brain = createBrain({
-    apiKey: process.env.OPENAI_API_KEY!, model: MODEL,
-    onTool: (nome, input, out) => { mundoAtual?.log.push(`${nome}(${JSON.stringify(input).slice(0, 200)}) → ${out.isError ? 'ERRO ' : ''}${out.content.slice(0, 200)}`) },
+  const lista = cenarios().filter(c => !filtros.length || filtros.some(f => c.id.includes(f)))
+  const { resultados, custoUsd } = await runEvals({
+    apiKey: process.env.OPENAI_API_KEY!, model: MODEL, judgeModel: process.env.EVAL_JUDGE_MODEL || 'gpt-5.4-2026-03-05',
+    cenarios: lista, reps: REPS, concorrencia: Number(process.env.EVAL_CONCORRENCIA || 4), gateTag: process.env.GATE_TAG || 'gate',
   })
-  const GATE = (process.env.GATE_TAG || 'gate').toLowerCase()
-
-  function memoryPort(w: World): LeadPort {
-    return {
-      async getLead() { return { id: 1, statusId: w.statusId, pipelineId: w.pipelineId, fields: structuredClone(w.fields), tags: [...w.tags] } },
-      async writeFields(vs) { for (const v of vs) { w.fields[v.field_id] = { value: v.values[0]?.value, enumIds: v.values.map(x => x.enum_id).filter((x): x is number => typeof x === 'number') }; w.log.push(`write ${v.field_id}=${JSON.stringify(v.values)}`) } },
-      async moveStage(s, p) { w.statusId = s; w.pipelineId = p; w.log.push(`stage ${s}`) },
-      async addTags(t) { t.forEach(x => w.tags.add(x.toLowerCase())) },
-      async removeTags(t) { t.forEach(x => w.tags.delete(x.toLowerCase())); w.log.push(`removeTags ${t.join(',')}`) },
-      async addNote(n) { w.notes.push(n) },
-      async createTask(typeId, text, completeTill) { w.tasks.push({ typeId, text, completeTill }); w.log.push(`task ${typeId}`) },
-      async markLost(r) { w.lost = r ?? null; w.statusId = 143 },
-      async horariosOcupados() { return [...w.ocupados] },
-      async reservarHorario(inicio) { if (w.ocupados.includes(inicio)) return false; w.ocupados.push(inicio); return true },
-      async criarEventoAgenda() { w.log.push('evento agenda'); return null },
-      agoraS: () => w.agoraS,
-      async getState() { return structuredClone(w.state) },
-      async patchState(p) { Object.assign(w.state, p); return structuredClone(w.state) },
-    }
+  for (const r of resultados) {
+    console.log(`\n${r.passou ? '✅' : '❌'} ${r.id} [${r.rep}/${REPS}] nota ${r.nota}/10`)
+    if (r.passou) continue
+    console.log(r.conversa.map(t => `LEAD: ${t.lead}\nIA: ${t.resposta}`).join('\n\n').split('\n').map(l => `   ${l}`).join('\n'))
+    for (const f of r.falhasCodigo) console.log(`   ⛔ código: ${f}`)
+    for (const f of r.falhasJuiz) console.log(`   ⛔ juiz: ${f.criterio} — ${f.porque}`)
+    for (const l of r.log) console.log(`   · ${l}`)
   }
-
-  let reprovados = 0
-  let custo = 0
-  const lista = CENARIOS.filter(c => !filtros.length || filtros.some(f => c.id.includes(f)))
-  for (const c of lista) {
-    for (let rep = 1; rep <= REPS; rep++) {
-      const porta = portaById(c.porta)
-      if (!porta) throw new Error(`cenário ${c.id}: porta ${c.porta} não existe`)
-      const w: World = {
-        statusId: c.statusId ?? 85921943, pipelineId: c.pipelineId ?? 11197195, fields: {}, tags: new Set([GATE]), notes: [],
-        state: { porta: porta.id, portaEm: 0, ...(c.state || {}) }, log: [], tasks: [], ocupados: [...(c.ocupados || [])], agoraS: Math.floor(Date.now() / 1000),
-      }
-      const history: ChatMsg[] = (c.historico || []).map(([dir, text], i) => ({ id: `h${i}`, dir, text, ts: i + 1 }))
-      const turnos: Turno[] = []
-      mundoAtual = w
-      for (const msg of c.msgs) {
-        if (w.state.finalizado) break
-        history.push({ id: `m${history.length}`, dir: 'in', text: msg, ts: history.length + 1 })
-        const iOut = history.map(m => m.dir).lastIndexOf('out')
-        const bloco = history.slice(iOut + 1).map(m => m.text).join('\n')
-        const reply = await brain.generateReply({
-          port: memoryPort(w), porta, gateTag: GATE,
-          leadText: history.filter(m => m.dir === 'in').map(m => m.text).join('\n'),
-          lastLeadText: bloco,
-          lastAgentText: iOut >= 0 ? history[iOut].text : '',
-        }, { nomeContato: c.nomeContato || '', primeiroContatoDaPorta: !history.some(m => m.dir === 'out') }, history)
-        const resposta = reply?.text || ''
-        custo += reply ? costUsd(MODEL, reply.usage) || 0 : 0
-        turnos.push({ lead: msg, resposta, tools: reply?.toolsUsed || [], guard: reply?.guard || [], handoff: !!reply?.handoff })
-        history.push({ id: `r${history.length}`, dir: 'out', text: resposta, ts: history.length + 1 })
-      }
-
-      const falhasCodigo = c.checks.filter(ch => { try { return !ch.fn(w, turnos) } catch { return true } }).map(ch => ch.nome)
-      const transcript = turnos.map(t => `LEAD: ${t.lead}\nIA: ${t.resposta}`).join('\n\n')
-      const juiz = await openai.chat.completions.create({
-        model: JUDGE,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: 'Você avalia a conversa de um atendente virtual de WhatsApp. Para CADA critério responda se foi atendido. Seja rigoroso e literal. JSON: {"criterios":[{"criterio":"...","ok":true|false,"porque":"..."}]}' },
-          { role: 'user', content: `CRITÉRIOS:\n${c.criterios.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\nCONVERSA:\n${transcript}` },
-        ],
-      })
-      const veredito = JSON.parse(juiz.choices[0].message.content || '{"criterios":[]}') as { criterios: Array<{ criterio: string; ok: boolean; porque: string }> }
-      const falhasJuiz = (veredito.criterios || []).filter(x => !x.ok)
-      const nota = c.criterios.length ? Math.round(((c.criterios.length - falhasJuiz.length) / c.criterios.length) * 100) / 10 : 10
-      const passou = !falhasCodigo.length && !falhasJuiz.length && (veredito.criterios || []).length >= c.criterios.length
-      if (!passou) reprovados++
-      console.log(`\n${passou ? '✅' : '❌'} ${c.id} [${rep}/${REPS}] nota ${nota}/10`)
-      if (!passou) {
-        console.log(transcript.split('\n').map(l => `   ${l}`).join('\n'))
-        for (const f of falhasCodigo) console.log(`   ⛔ código: ${f}`)
-        for (const f of falhasJuiz) console.log(`   ⛔ juiz: ${f.criterio} — ${f.porque}`)
-        for (const l of w.log) console.log(`   · ${l}`)
-      }
-    }
-  }
-  console.log(`\n${reprovados ? `❌ ${reprovados} reprovado(s)` : '✅ Todos aprovados'} · ${lista.length} cenário(s) × ${REPS} · custo do agente US$ ${custo.toFixed(4)} (juiz não incluso)`)
+  const reprovados = resultados.filter(r => !r.passou).length
+  console.log(`\n${reprovados ? `❌ ${reprovados} reprovado(s)` : '✅ Todos aprovados'} · ${lista.length} cenário(s) × ${REPS} · custo do agente US$ ${custoUsd.toFixed(4)} (juiz não incluso)`)
   process.exit(reprovados ? 1 : 0)
 }
 main().catch(e => { console.error(e); process.exit(1) })

@@ -7,6 +7,7 @@ import {
 } from './history'
 import { getLead, leadTags } from './kommo'
 import { createBrain } from './llm'
+import { baseVigente } from './base'
 import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
@@ -21,7 +22,7 @@ import { sendReply } from './transport'
 
 const MAX_ROUNDS = 3
 
-const brain = createBrain({ apiKey: CONFIG.openaiApiKey, model: CONFIG.llmModel })
+// O cérebro é montado a cada conversa com a base publicada (Central › Ensinar): ver baseVigente()
 
 /** Bloco atual do lead: inbounds depois da última outbound. */
 function blocoAtual(history: ChatMsg[]): ChatMsg[] {
@@ -101,9 +102,10 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
       const conversa = history.filter(m => m.ts >= portaEm)
 
       const port = kommoPort(leadId)
+      const base = await baseVigente()
       const iLast = conversa.map(m => m.dir).lastIndexOf('in')
       const ctx: ToolCtx = {
-        port, porta, gateTag: CONFIG.gateTag,
+        port, porta, gateTag: CONFIG.gateTag, textos: base.textos,
         leadText: conversa.filter(m => m.dir === 'in').map(m => m.text).join('\n'),
         lastLeadText: textoTurno,
         lastAgentText: [...conversa.slice(0, Math.max(iLast, 0))].reverse().find(m => m.dir === 'out')?.text || '',
@@ -111,16 +113,21 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       // 2. Porta sem agente: mensagem fixa e finaliza (sem LLM)
       if (!porta.ativa) {
-        const texto = porta.mensagemSemAgente || 'Anotei aqui. Alguém da equipe continua a conversa com você por aqui.'
+        // Atendimento (quem já é cliente): o texto de 24 horas da base, sem LLM
+        const texto = porta.id === 'atendimento' ? `Oi! ${base.textos.enc_atendimento}` : porta.mensagemSemAgente || 'Anotei aqui. Alguém da equipe continua a conversa com você por aqui.'
         await aplicarFinalizacao(ctx, 'porta_sem_agente', `Assunto: ${porta.label}. Primeira mensagem: ${textoTurno.slice(0, 300)}`)
         const detail = await enviar(leadId, texto)
         await markAnswered(leadId, target.id)
-        await logExec({ tipo: 'finalizou', leadId, nome, porta: porta.id, ms: Date.now() - t0, detalhe: `porta sem agente · ${detail}` })
+        await logExec({
+          tipo: 'finalizou', leadId, nome, porta: porta.id, ms: Date.now() - t0, detalhe: `porta sem agente · ${detail}`,
+          perfil: 'cliente', motivo: 'porta_sem_agente', turnoLead: textoTurno, respostaIA: texto,
+        })
         return
       }
 
       // 3. Cérebro
       const primeiroContatoDaPorta = !conversa.some(m => m.dir === 'out')
+      const brain = createBrain({ apiKey: CONFIG.openaiApiKey, model: CONFIG.llmModel, promptOverride: base.prompts })
       const reply = await brain.generateReply(ctx, { nomeContato: nome, primeiroContatoDaPorta }, conversa)
       if (!reply?.text) {
         await logExec({ tipo: 'erro', leadId, nome, porta: porta.id, detalhe: 'modelo não gerou resposta' })
@@ -143,9 +150,16 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
         const l = await port.getLead()
         if (l.statusId === CRM_MAP.sdr.etapas.entrada) await moverSdr(port, CRM_MAP.sdr.etapas.qualificacao)
       }
+      const fim = await getState(leadId)
       await logExec({
         tipo: reply.handoff ? 'finalizou' : 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0,
-        tools: reply.toolsUsed, guard: reply.guard, usage: reply.usage, urgente: reply.urgente || undefined, detalhe: detail,
+        tools: reply.toolsUsed, guard: reply.guard, usage: reply.usage, urgente: reply.urgente || undefined,
+        // na passagem, o resumo que a IA deixou para a equipe é o que a Central mostra
+        detalhe: reply.handoff && fim.finalizado?.resumo ? `${fim.finalizado.resumo} · ${detail}` : detail,
+        perfil: porta.id === 'atendimento' ? 'cliente' : 'nao_cliente',
+        motivo: reply.handoff ? fim.finalizado?.motivo : undefined,
+        decisao: reply.toolsUsed.includes('analisar_contracheque') ? fim.analise?.decisao : undefined,
+        turnoLead: textoTurno, respostaIA: reply.text,
       })
       console.log(`[agente] RESPONDEU lead ${leadId} (${porta.id}) em ${Date.now() - t0}ms · tools: ${reply.toolsUsed.join(', ') || '—'}${reply.guard.length ? ` · trava: ${reply.guard.join(' | ')}` : ''}`)
       return

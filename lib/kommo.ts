@@ -142,3 +142,15 @@ export async function leadsInStatuses(pipelineId: number, statusIds: number[]): 
 export async function markLeadLost(leadId: number, pipelineId: number, lossReasonId?: number): Promise<void> {
   await kommo('PATCH', `/api/v4/leads/${leadId}`, { status_id: 143, pipeline_id: pipelineId, ...(lossReasonId ? { loss_reason_id: lossReasonId } : {}) })
 }
+
+/** Leads de um funil (até 10 páginas de 250), com tags. Central: funil e contagens. */
+export async function leadsDoFunil(pipelineId: number): Promise<KommoLead[]> {
+  const out: KommoLead[] = []
+  for (let page = 1; page <= 10; page++) {
+    const r = await kommo<{ _embedded?: { leads?: KommoLead[] } }>('GET', `/api/v4/leads?limit=250&page=${page}&filter[pipeline_id]=${pipelineId}`)
+    const leads = r._embedded?.leads || []
+    out.push(...leads)
+    if (leads.length < 250) break
+  }
+  return out
+}

@@ -13,6 +13,7 @@
   "dependencies": {
     "@upstash/redis": "^1.34.3",
     "@vercel/functions": "^1.5.2",
+    "mammoth": "^1.13.0",
     "openai": "^4.104.0"
   },
   "devDependencies": {
