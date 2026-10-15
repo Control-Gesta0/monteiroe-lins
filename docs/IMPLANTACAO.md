@@ -1,8 +1,8 @@
 # Lia · implantação no Kommo da Monteiro & Lins
 
-> Estado em 14/10/2026: código montado e testado localmente. **Ainda não está no ar.**
-> Provas feitas: `tsc` limpo · `npm test` com 112 verificações (réplica da planilha, agenda, roteamento, travas e ferramentas) · `/api/validate` rodado contra o Kommo vivo, com todos os IDs conferidos.
-> Ainda NÃO provado: evals com o modelo (falta a chave da OpenAI), E2E num WhatsApp real.
+> Estado em 15/10/2026: **no ar em https://lia-monteiro-lins.vercel.app, ainda sem receber mensagens** (webhook do Kommo não criado; nenhum lead tem a tag `lia`).
+> Provas feitas: `tsc` limpo · `npm test` com 120 verificações · evals 30/30 (10 cenários × 3) em duas rodadas seguidas · `/api/validate` no ar com `ok: true` contra o Kommo vivo.
+> Ainda NÃO provado: E2E num WhatsApp real; Google Agenda (falta autorizar).
 
 ## Como a Lia funciona
 
@@ -47,16 +47,20 @@ O que é regra do escritório está em código, não no prompt: a conta da plani
 
 Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo/Meta.
 
-1. 🙋 **Chave da OpenAI** (conta da Control Gestão ou do escritório).
-2. **Rodar os evals:** `EVAL_REPS=3 npm run evals` → 10 cenários aprovados nas 3 rodadas.
+1. ✅ **Chave da OpenAI** recebida em 15/10/2026 (modelos `gpt-5.4-mini` e `gpt-4o-mini-transcribe` liberados).
+2. ✅ **Evals:** 30/30 em 15/10/2026. Os primeiros acharam 3 defeitos reais (horário sem dia da semana, turno a mais para oferecer horário, trava bloqueando "não tem garantia"), corrigidos antes de subir.
 3. 🙋 **Fundador:** nome e corporação para o `prompts/nucleo.md` (a Lia cita na primeira mensagem). Rodar os evals de novo depois.
 4. ✅ **Campo de resposta:** "Resposta IA (Lia)" criado no lead pela API em 14/10/2026 (ID `1128813`, textarea) e já está em `CRM_MAP.respostaFieldId`.
 5. ✅ **Salesbot de envio:** "Lia envio", ID `93439`, criado e salvo na tela em 14/10/2026 com um passo "Enviar mensagem" cujo texto é o campo do lead **Resposta IA (Lia)** (grupo "IA Lia"). ID em `KOMMO_BOT_ID`. A entrega real só se prova no E2E (item 11).
 6. 🙋 **Template de boas-vindas no WhatsApp (Meta)**, para lead de formulário que ainda não mandou mensagem. Sugestão (o trecho "Aqui é a Lia, assistente virtual" precisa ficar igual, é como o sistema reconhece que não foi uma pessoa):
    > Oi, {{1}}! Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. O escritório foi fundado por um policial e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
 7. 🙋 **Digital Pipeline** em "Leads de entrada" do Funil/SDR: pôr a tag `lia` e enviar o template acima. Na rampagem, só para os leads escolhidos.
-8. **Vercel:** projeto `lia-monteiro-lins`, envs do `.env.local.example` (`WEBHOOK_SECRET` novo, `REDIS_PREFIX=ak-monteiro-lins:`), `vercel deploy --prod`.
-9. **Validar no ar:** `GET /api/inbound` (saúde) e `GET /api/validate?secret=...` → `ok: true`.
+8. ✅ **Vercel:** projeto `lia-monteiro-lins` (time Control Gestão), 20 variáveis, `WEBHOOK_SECRET` novo, `REDIS_PREFIX=ak-monteiro-lins:`. Deploy de produção em 15/10/2026.
+9. ✅ **Validado no ar:** saúde 200, `/api/validate` `ok: true`, 401 sem o secret.
+9b. 🙋 **Google Agenda** (agenda `6d6bb5c8…@group.calendar.google.com`):
+   - no Google Cloud Console, no cliente OAuth `165859030213-…`, cadastrar o URI de redirecionamento autorizado **`https://lia-monteiro-lins.vercel.app/api/google-oauth`** (hoje o Google responde `redirect_uri_mismatch`);
+   - deixar a tela de consentimento **em produção** (em "teste", o Google derruba a autorização em 7 dias) e a Google Calendar API ativada no projeto;
+   - quem tem acesso de edição à agenda abre o link de conexão (passo a Control Gestão) e clica em Permitir. O `/api/validate` passa a mostrar "Google Agenda ligada".
 10. **Webhook:** `npx tsx scripts/create-webhook.ts` lista; confirmar com o escritório; `--criar`.
 11. **E2E com número real:** lead de teste com a tag `lia` e o ID em `TEST_LEAD_IDS`. Mandar contracheque de teste, conferir mensagem no celular, card (nota da análise, Agendamento, tarefa, etapa) e `/api/executions`. `reset` recomeça.
 12. **Rampagem:** 1 lead → 10 → todos. Nas duas primeiras semanas, desqualificados ficam em Qualificação com a tag `lia-desqualificou` para o comercial conferir. Depois de 20 casos batendo com a planilha: `sdr.desqualificacao.moverParaPerdido = true`.
