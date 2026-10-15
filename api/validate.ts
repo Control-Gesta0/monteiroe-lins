@@ -3,6 +3,7 @@ import { CONFIG } from '../lib/config'
 import { CRM_MAP } from '../lib/crm-map'
 import { kommoGet } from '../lib/kommo'
 import { loadPromptFile } from '../lib/llm'
+import { googleAtivo, googleConfigurado, nomeDaAgenda } from '../lib/google-calendar'
 
 /**
  * CRM_MAP × Kommo VIVO + coerência interna. Rodar depois de QUALQUER mexida no
@@ -91,6 +92,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!sdr.desqualificacao.moverParaPerdido) avisos.push('Rampagem: desqualificados ficam em Qualificação com a tag lia-desqualificou (moverParaPerdido = false).')
   } catch (e) {
     problems.push(`falha ao consultar o Kommo: ${e instanceof Error ? e.message : String(e)}`)
+  }
+
+  // Google Agenda: sem ela a Lia usa só a grade + reuniões do Kommo (aviso, não bloqueio)
+  if (!CONFIG.selfUrl) problems.push('SELF_URL ausente (alias público do deploy, nunca VERCEL_URL)')
+  if (!googleConfigurado()) avisos.push('Google Agenda não configurada: a Lia usa só a grade do crm-map e as reuniões do Kommo.')
+  else if (!(await googleAtivo())) avisos.push(`Google Agenda sem autorização: o dono da agenda precisa abrir ${CONFIG.selfUrl}/api/google-oauth?secret=...`)
+  else {
+    try { avisos.push(`Google Agenda ligada: ${await nomeDaAgenda()}`) } catch (e) { problems.push(`Google Agenda não abre: ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   return res.status(problems.length ? 500 : 200).json({ ok: problems.length === 0, cliente: CONFIG.clientName, portas: CRM_MAP.portas.map(p => `${p.menu ?? '-'}:${p.id}${p.ativa ? '' : '(inativa)'}`), problems, avisos })

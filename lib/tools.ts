@@ -29,6 +29,8 @@ export interface LeadPort {
   horariosOcupados(): Promise<number[]>
   /** reserva atômica do horário (false = outro lead acabou de pegar) */
   reservarHorario(inicio: number): Promise<boolean>
+  /** cria o evento na Google Agenda; devolve o id, ou null se a agenda não está ligada */
+  criarEventoAgenda(inicio: number, fim: number, titulo: string, descricao: string, local?: string): Promise<string | null>
   agoraS(): number
   getState(): Promise<LeadState>
   patchState(p: Partial<LeadState>): Promise<LeadState>
@@ -321,7 +323,8 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
     case 'qualificado': {
       await moverSdr(port, sdr.etapas.qualificado)
       // Os horários já vão junto: o modelo às vezes perguntava "posso passar os horários?" e gastava um turno do lead
-      const agenda = await consultarHorarios(ctx)
+      const agenda = await consultarHorarios(ctx).catch(e => agendaIndisponivel(ctx, e))
+      if (agenda.handoff) return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". ${agenda.content}`, { handoff: true })
       return ok(`QUALIFICADO. Comprometimento da renda líquida com consignado: ${pct(r.totais.comprometimento)}. Redução mensal estimada (teto de 40%): ${brl(r.reducaoMensal)}. Na MESMA mensagem: mostre esses dois números com "pode baixar cerca de", diga que o próximo passo é a conversa com o advogado e já ofereça os dois horários abaixo, perguntando qual o lead prefere. ${agenda.content}`)
     }
     case 'renda_abaixo':
@@ -339,6 +342,13 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
       await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
       return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: sdr.textos.revisao_humana })
   }
+}
+
+/** Agenda fora do ar (Kommo ou Google): a Lia não chuta horário, a equipe propõe em até 24h. */
+async function agendaIndisponivel(ctx: ToolCtx, e: unknown): Promise<ToolOutcome> {
+  await ctx.port.addNote(`⚠️ Lia não conseguiu ler a agenda: ${e instanceof Error ? e.message : String(e)}`)
+  await aplicarFinalizacao(ctx, 'agenda_indisponivel', 'Lead qualificado; a agenda não respondeu. Propor horário ao lead.')
+  return ok('A agenda não respondeu agora. Diga que a equipe vai propor o horário da reunião por aqui em até 24 horas. Não ofereça horário e não faça pergunta.', { handoff: true })
 }
 
 async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
@@ -373,6 +383,19 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   const formato = input.formato === 'presencial' ? 'presencial' : 'online'
   const onde = formato === 'presencial' ? `presencial na ${sdr.endereco}` : 'por videochamada aqui no WhatsApp'
   await port.writeFields([{ field_id: sdr.campos.agendamento, values: [{ value: slot.inicio }] }])
+  // Google Agenda: falha aqui NÃO desfaz o agendamento (o Kommo já tem campo + tarefa); fica registrada no card
+  try {
+    const lead = await port.getLead()
+    const id = await port.criarEventoAgenda(
+      slot.inicio, slot.inicio + cfg.duracaoMin * 60,
+      `Reunião ${formato} · lead ${lead.id} (Lia)`,
+      `Marcada pela Lia no WhatsApp.\nComprometimento ${pct(state.analise.comprometimento)} · redução estimada ${brl(state.analise.reducaoMensal)}/mês.\nLead no Kommo: ${lead.id}`,
+      formato === 'presencial' ? sdr.endereco : 'Videochamada pelo WhatsApp',
+    )
+    if (id) await port.addNote(`🗓️ Evento criado na Google Agenda: ${slot.rotulo} (${formato}).`)
+  } catch (e) {
+    await port.addNote(`⚠️ Lia marcou ${slot.rotulo}, mas NÃO conseguiu criar o evento na Google Agenda: ${e instanceof Error ? e.message : String(e)}. Criar à mão.`)
+  }
   await port.createTask(sdr.tarefas.tipoAgendamento, `Reunião ${formato} marcada pela Lia: ${slot.rotulo}. Análise: comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês.`, slot.inicio)
   await moverSdr(port, sdr.etapas.agendada)
   await aplicarFinalizacao(ctx, 'agendou', `Reunião ${formato} em ${slot.rotulo}.`)
@@ -470,8 +493,8 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
       }
 
       case 'analisar_contracheque': return await analisar(ctx)
-      case 'consultar_horarios': return await consultarHorarios(ctx)
-      case 'agendar_reuniao': return await agendar(ctx, input)
+      case 'consultar_horarios': return await consultarHorarios(ctx).catch(e => agendaIndisponivel(ctx, e))
+      case 'agendar_reuniao': return await agendar(ctx, input).catch(e => agendaIndisponivel(ctx, e))
 
       default:
         return err(`Tool desconhecida "${name}".`)

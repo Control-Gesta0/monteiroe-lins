@@ -95,3 +95,11 @@ export function duasOpcoes(livres: Slot[], cfg: AgendaConfig, pular: number[] = 
   const segunda = outroDia || outroTurno || lista[1]
   return segunda ? [primeira, segunda] : [primeira]
 }
+
+/** Início dos horários da grade que batem em algum intervalo ocupado [início, fim) (Google Agenda). */
+export function iniciosOcupadosPorIntervalos(intervalos: Array<[number, number]>, agoraS: number, cfg: AgendaConfig): number[] {
+  const dur = cfg.duracaoMin * 60
+  return horariosLivres(agoraS, [], cfg)
+    .filter(s => intervalos.some(([a, b]) => s.inicio < b && s.inicio + dur > a))
+    .map(s => s.inicio)
+}

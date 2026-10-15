@@ -83,6 +83,7 @@ async function main() {
       async markLost(r) { w.lost = r ?? null; w.statusId = 143 },
       async horariosOcupados() { return [...w.ocupados] },
       async reservarHorario(inicio) { if (w.ocupados.includes(inicio)) return false; w.ocupados.push(inicio); return true },
+      async criarEventoAgenda() { w.log.push('evento agenda'); return null },
       agoraS: () => w.agoraS,
       async getState() { return structuredClone(w.state) },
       async patchState(p) { Object.assign(w.state, p); return structuredClone(w.state) },

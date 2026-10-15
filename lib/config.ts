@@ -34,4 +34,11 @@ export const CONFIG = {
   gateTag: (process.env.GATE_TAG || '').toLowerCase(),
   humanTag: (process.env.HUMAN_TAG || 'atendimento-humano').toLowerCase(),
   testLeadIds: list(process.env.TEST_LEAD_IDS).map(Number).filter(Boolean),
+
+  // Monteiro & Lins: endereço público do deploy (nunca VERCEL_URL) e Google Agenda
+  selfUrl: (process.env.SELF_URL || '').replace(/\/+$/, ''),
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+  googleCalendarId: process.env.GOOGLE_CALENDAR_ID || '',
+  googleRefreshToken: process.env.GOOGLE_REFRESH_TOKEN || '',
 }

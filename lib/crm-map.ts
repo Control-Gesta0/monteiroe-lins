@@ -132,7 +132,7 @@ export const CRM_MAP = {
       tipoRetorno: 1, // "Follow-up"
       horasRetorno: 24,
       /** motivos de finalização que viram tarefa de retorno em 24h */
-      motivosComRetorno: ['porta_sem_agente', 'pediu_humano', 'fora_do_escopo', 'revisao_humana', 'urgencia', 'discordou_analise'],
+      motivosComRetorno: ['porta_sem_agente', 'pediu_humano', 'fora_do_escopo', 'revisao_humana', 'urgencia', 'discordou_analise', 'agenda_indisponivel'],
     },
     desqualificacao: {
       /** rampagem: false = só marca a tag e o comercial confere. true = move para Venda perdida com motivo */

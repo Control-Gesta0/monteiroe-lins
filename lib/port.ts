@@ -1,6 +1,8 @@
 import { CRM_MAP } from './crm-map'
 import { addLeadNote, addLeadTags, createTask, fieldValue, getLead, leadsInStatuses, leadTags, markLeadLost, removeLeadTags, updateLeadFields, updateLeadStatus, type KommoFieldValue } from './kommo'
 import { k, redis } from './redis'
+import { iniciosOcupadosPorIntervalos } from './agenda'
+import { criarEvento, googleAtivo, intervalosOcupados, listarEventos } from './google-calendar'
 import { getState, patchState } from './state'
 import type { LeadPort, LeadView } from './tools'
 
@@ -40,7 +42,15 @@ export function kommoPort(leadId: number): LeadPort {
     async horariosOcupados() {
       if (!ocupados) {
         const leads = await leadsInStatuses(CRM_MAP.sdr.pipelineId, CRM_MAP.agenda.etapasOcupadas)
-        ocupados = leads.map(l => Number(fieldValue(l, CRM_MAP.sdr.campos.agendamento))).filter(n => Number.isFinite(n) && n > 0)
+        const lista = leads.map(l => Number(fieldValue(l, CRM_MAP.sdr.campos.agendamento))).filter(n => Number.isFinite(n) && n > 0)
+        // Google Agenda do escritório: compromisso que bate no horário ocupa. Se a leitura falhar, o erro sobe e a
+        // Lia não oferece horário (fail-closed); só guarda em cache a lista completa.
+        if (await googleAtivo()) {
+          const agora = Math.floor(Date.now() / 1000)
+          const eventos = await listarEventos(agora, agora + (CRM_MAP.agenda.diasAFrente + 2) * 86_400)
+          lista.push(...iniciosOcupadosPorIntervalos(intervalosOcupados(eventos, CRM_MAP.agenda.offsetUtc), agora, CRM_MAP.agenda))
+        }
+        ocupados = lista
       }
       return ocupados
     },
@@ -49,6 +59,10 @@ export function kommoPort(leadId: number): LeadPort {
       const r = await redis.set(k('agenda', inicio), String(leadId), { nx: true, ex: ttl })
       if (r === 'OK') return true
       return (await redis.get<string | number>(k('agenda', inicio)))?.toString() === String(leadId)
+    },
+    async criarEventoAgenda(inicio, fim, titulo, descricao, local) {
+      if (!(await googleAtivo())) return null
+      return criarEvento({ inicioS: inicio, fimS: fim, titulo, descricao, local })
     },
     agoraS: () => Math.floor(Date.now() / 1000),
     getState: () => getState(leadId),

@@ -17,7 +17,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const { analisarContracheque, calcularTotais, classificar, PARAMETROS } = await import('../lib/analise-contracheque')
   type Rubrica = import('../lib/analise-contracheque').Rubrica
   const { extrairContracheque } = await import('../lib/contracheque-texto')
-  const { duasOpcoes, horariosLivres, naGrade, slotDeIso } = await import('../lib/agenda')
+  const { duasOpcoes, horariosLivres, iniciosOcupadosPorIntervalos, naGrade, slotDeIso } = await import('../lib/agenda')
+  const { intervalosOcupados } = await import('../lib/google-calendar')
   const { checkReply } = await import('../lib/guards')
   const { rotear } = await import('../lib/router')
   const { CRM_MAP, portaById } = await import('../lib/crm-map')
@@ -94,6 +95,17 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('agenda: horário vira o timestamp do Kommo (BRT)', slotDeIso('2026-10-15T15:30', cfg)!.inicio, Date.parse('2026-10-15T18:30:00Z') / 1000)
   eq('agenda: segunda rodada não repete as já oferecidas', duasOpcoes(livres, cfg, duasOpcoes(livres, cfg).map(s => s.inicio))[0]?.rotulo, 'quinta (15/10) às 10h')
 
+  // Google Agenda: compromisso de 10h às 11h na quinta ocupa 10h e 10h30; evento "disponível" e cancelado não ocupam
+  const evts = [
+    { id: 'a', start: { dateTime: '2026-10-15T10:00:00-03:00' }, end: { dateTime: '2026-10-15T11:00:00-03:00' } },
+    { id: 'b', transparency: 'transparent', start: { dateTime: '2026-10-15T14:30:00-03:00' }, end: { dateTime: '2026-10-15T17:00:00-03:00' } },
+    { id: 'c', status: 'cancelled', start: { dateTime: '2026-10-20T14:30:00-03:00' }, end: { dateTime: '2026-10-20T15:00:00-03:00' } },
+    { id: 'd', start: { date: '2026-10-21' }, end: { date: '2026-10-22' } },
+  ]
+  const ocupG = iniciosOcupadosPorIntervalos(intervalosOcupados(evts), quartaManha, cfg)
+  const rot = (xs: number[]) => xs.map(x => horariosLivres(quartaManha, [], cfg).find(s => s.inicio === x)?.rotulo)
+  eq('google: 10h–11h ocupa 10h e 10h30; dia inteiro ocupa a quarta', rot(ocupG), ['quinta (15/10) às 10h', 'quinta (15/10) às 10h30', 'quarta (21/10) às 14h30', 'quarta (21/10) às 15h', 'quarta (21/10) às 15h30', 'quarta (21/10) às 16h', 'quarta (21/10) às 16h30'])
+
   // ---------- 5. Roteamento ----------
   const porta = (t: string) => { const r = rotear({}, t); return r.tipo === 'porta' ? r.porta.id : r.tipo }
   eq('rota: lead novo', porta('oi, vi o anúncio do consignado'), 'superendividamento')
@@ -123,7 +135,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const mundo = (statusId = CRM_MAP.sdr.etapas.qualificacao) => {
     const w = {
       statusId, pipelineId: CRM_MAP.sdr.pipelineId, tags: new Set(['lia']), fields: {} as Record<number, unknown>, notes: [] as string[],
-      tasks: [] as Array<{ typeId: number; completeTill: number }>, state: {} as Record<string, any>, ocupados: [] as number[], lost: undefined as number | undefined,
+      tasks: [] as Array<{ typeId: number; completeTill: number }>, state: {} as Record<string, any>, ocupados: [] as number[], lost: undefined as number | undefined, eventos: [] as Array<[number, number]>,
     }
     const port: LeadPort = {
       getLead: async () => ({ id: 1, statusId: w.statusId, pipelineId: w.pipelineId, fields: {}, tags: [...w.tags] }),
@@ -136,6 +148,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
       markLost: async r => { w.lost = r; w.statusId = 143 },
       horariosOcupados: async () => [...w.ocupados],
       reservarHorario: async i => { if (w.ocupados.includes(i)) return false; w.ocupados.push(i); return true },
+      criarEventoAgenda: async (inicio, fim) => { w.eventos.push([inicio, fim]); return 'ev1' },
       agoraS: () => quartaManha,
       getState: async () => ({ ...w.state }),
       patchState: async p => Object.assign(w.state, p),
@@ -168,9 +181,17 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('agenda: horário que outro lead pegou é recusado', [ag.isError, /acabou de ser ocupado/.test(ag.content)], [true, true])
     ag = await runTool(ctx(port, `${transcricao}\nquinta 10h presencial`, 'quinta 10h presencial'), 'agendar_reuniao', { data_hora: '2026-10-15T10:00', formato: 'presencial', evidencia: 'quinta 10h presencial' })
     eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 10h, presencial na Rua da Quitanda, 19, sala 711, Centro. Até lá!'])
+    eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T10:00', cfg)!.inicio, slotDeIso('2026-10-15T10:30', cfg)!.inicio]])
     eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T10:00', cfg)!.inicio)
     eq('agenda: tarefa "Agendamento IA" no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T10:00', cfg)!.inicio)
     eq('agenda: etapa Reunião Agendada e IA desligada', [w.statusId, w.tags.has('lia'), w.state.finalizado?.motivo], [CRM_MAP.sdr.etapas.agendada, false, 'agendou'])
+  }
+  {
+    const { w, port } = mundo()
+    port.horariosOcupados = async () => { throw new Error('Google Agenda -> 500') }
+    const out = await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
+    eq('agenda fora do ar: passa o resultado, não oferece horário, encerra', [out.isError, out.handoff, /QUALIFICADO/.test(out.content), /\[2026-/.test(out.content)], [false, true, true, false])
+    eq('agenda fora do ar: tarefa de 24h e nota no card', [w.tasks[0]?.completeTill, w.notes.some(n => /não conseguiu ler a agenda/.test(n))], [quartaManha + 24 * 3600, true])
   }
   {
     const { w, port } = mundo()
