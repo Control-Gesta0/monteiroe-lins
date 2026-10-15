@@ -1,6 +1,6 @@
 # Lia · implantação no Kommo da Monteiro & Lins
 
-> Estado em 15/10/2026: **no ar em https://lia-monteiro-lins.vercel.app, ainda sem receber mensagens** (webhook do Kommo não criado; nenhum lead tem a tag `lia`).
+> Estado em 15/10/2026: **no ar em https://lia-monteiro-lins.vercel.app, webhook ligado, sem atender ninguém** (nenhum lead tem a tag `lia`).
 > Provas feitas: `tsc` limpo · `npm test` com 120 verificações · evals 30/30 (10 cenários × 3) em duas rodadas seguidas · `/api/validate` no ar com `ok: true` contra o Kommo vivo.
 > Ainda NÃO provado: E2E num WhatsApp real; Google Agenda (falta autorizar).
 
@@ -61,7 +61,7 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
    - no Google Cloud Console, no cliente OAuth `165859030213-…`, cadastrar o URI de redirecionamento autorizado **`https://lia-monteiro-lins.vercel.app/api/google-oauth`** (hoje o Google responde `redirect_uri_mismatch`);
    - deixar a tela de consentimento **em produção** (em "teste", o Google derruba a autorização em 7 dias) e a Google Calendar API ativada no projeto;
    - quem tem acesso de edição à agenda abre o link de conexão (passo a Control Gestão) e clica em Permitir. O `/api/validate` passa a mostrar "Google Agenda ligada".
-10. **Webhook:** `npx tsx scripts/create-webhook.ts` lista; confirmar com o escritório; `--criar`.
+10. ✅ **Webhook:** `add_message` criado pela API em 15/10/2026 (ID `47515220`), apontando para `/api/inbound` com o secret. Era o único webhook da conta. Toda mensagem da conta passa pelo agente e fica no histórico do Redis (90 dias); só lead com a tag `lia` recebe resposta.
 11. **E2E com número real:** lead de teste com a tag `lia` e o ID em `TEST_LEAD_IDS`. Mandar contracheque de teste, conferir mensagem no celular, card (nota da análise, Agendamento, tarefa, etapa) e `/api/executions`. `reset` recomeça.
 12. **Rampagem:** 1 lead → 10 → todos. Nas duas primeiras semanas, desqualificados ficam em Qualificação com a tag `lia-desqualificou` para o comercial conferir. Depois de 20 casos batendo com a planilha: `sdr.desqualificacao.moverParaPerdido = true`.
 
