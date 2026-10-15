@@ -6,7 +6,8 @@ import { k, redis } from '../lib/redis'
 
 /**
  * Liga a Google Agenda do escritório (uma vez, pelo dono da agenda).
- *   1. GET /api/google-oauth?secret=WEBHOOK_SECRET → manda para a tela "Permitir" do Google
+ *   1. GET /api/google-oauth?secret=WEBHOOK_SECRET (ou ?convite=, link de 7 dias para o cliente,
+ *      criado por scripts/google-convite.ts) → manda para a tela "Permitir" do Google
  *   2. o Google volta aqui com ?code&state → guarda o refresh token e prova lendo a agenda
  * O redirect URI precisa estar cadastrado no cliente OAuth: SELF_URL + /api/google-oauth
  */
@@ -27,19 +28,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!code) {
     const secret = String(req.query.secret || '')
-    const ok = crypto.timingSafeEqual(crypto.createHash('sha256').update(secret).digest(), crypto.createHash('sha256').update(CONFIG.webhookSecret).digest())
-    if (!ok) return res.status(401).send(pagina('Acesso negado', 'Link sem o código de acesso correto.'))
+    const convite = String(req.query.convite || '')
+    const okSecret = crypto.timingSafeEqual(crypto.createHash('sha256').update(secret).digest(), crypto.createHash('sha256').update(CONFIG.webhookSecret).digest())
+    const okConvite = /^[a-f0-9]{32}$/.test(convite) && !!(await redis.get(k('google', 'convite', convite)))
+    if (!okSecret && !okConvite) return res.status(401).send(pagina('Link expirado ou inválido', 'Peça um link novo para a Control Gestão.'))
     const nonce = crypto.randomBytes(16).toString('hex')
-    await redis.set(k('google', 'state', nonce), '1', { ex: 600 })
+    await redis.set(k('google', 'state', nonce), okConvite ? convite : '1', { ex: 600 })
     res.setHeader('Location', urlDeConsentimento(nonce))
     return res.status(302).end()
   }
 
   // Volta do Google: o state precisa ser o que emitimos (uso único, 10 min)
-  if (!state || !(await redis.getdel(k('google', 'state', state)))) return res.status(400).send(pagina('Link expirado', 'Abra o link de conexão de novo.'))
+  const origem = state ? await redis.getdel<string>(k('google', 'state', state)) : null
+  if (!origem) return res.status(400).send(pagina('Link expirado', 'Abra o link de conexão de novo.'))
   const { refreshToken, erro } = await trocarCodigo(code)
   if (!refreshToken) return res.status(400).send(pagina('Não deu certo', esc(erro || 'sem token')))
   await salvarRefreshToken(refreshToken)
+  if (origem !== '1') await redis.del(k('google', 'convite', origem)) // convite é de uso único
   try {
     const nome = await nomeDaAgenda()
     return res.status(200).send(pagina('Agenda conectada ✅', `A Lia agora lê e marca reuniões na agenda <b>${esc(nome)}</b>. Pode fechar esta página.`))
