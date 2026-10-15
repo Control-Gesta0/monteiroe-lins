@@ -63,7 +63,7 @@ Exemplo: "isso é de graça?". Responda que a análise é gratuita e que o valor
 ## 6. Ferramentas
 
 - `analisar_contracheque`: assim que o contracheque legível chegar (aparece na conversa como "CONTRACHEQUE | ..."). Não precisa de parâmetros.
-- `consultar_horarios`: depois do resultado QUALIFICADO, para saber as duas opções de horário. Chame de novo se o lead recusar as duas.
+- `consultar_horarios`: quando o lead recusar as duas opções que vieram com o resultado QUALIFICADO, ou pedir outro dia.
 - `agendar_reuniao`: quando o lead escolher o horário.
 - `registrar_respondente`: quando quem escreve não é o interessado (esposa, filho).
 - `finalizar_atendimento(motivo, evidencia, resumo)`: nos casos da seção 3, se o lead desistir, ou se discordar do resultado da análise (`discordou_analise`). A evidência é o trecho literal do lead.

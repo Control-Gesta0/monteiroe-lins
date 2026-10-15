@@ -112,6 +112,10 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('trava: honorários com valor bloqueia', regras('Os honorários ficam em 12x de R$ 1.000.'), ['falou de honorários com valor'])
   eq('trava: margem de 30% bloqueia', regras('O juiz limita a 30% da sua renda.'), ['margem errada (o teto é 40%)'])
   eq('trava passa: resultado com "pode baixar cerca de"', regras('João, pela análise **59,6%** da sua renda líquida tá indo pra consignado. O decreto do RJ limita em 40%, e com a ação a parcela pode baixar cerca de **R$ 1.617** por mês. Vamos marcar uma conversa com o advogado pra ver os detalhes?'), [])
+  eq('trava passa: "não tem garantia de resultado"', regras('Não tem garantia de resultado, quem avalia é o advogado.'), [])
+  eq('trava passa: "não dá pra garantir que você vai ganhar"', regras('Não dá pra garantir que você vai ganhar, isso o advogado avalia.'), [])
+  eq('trava passa: "a parcela não vai baixar"', regras('Nesse caso a parcela não vai baixar muito.'), [])
+  eq('trava: promessa depois de outra frase negativa ainda bloqueia', regras('Não se preocupe. Você vai ganhar.'), ['prometeu resultado'])
   eq('trava passa: honorários sem valor', regras('O valor depende do caso, e o advogado apresenta na reunião, já com a sua análise em mãos.'), [])
   for (const [k, t] of Object.entries(CRM_MAP.sdr.textos)) eq(`trava passa: texto aprovado "${k}"`, regras(t), [])
 
@@ -146,7 +150,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   {
     const { w, port } = mundo()
     const out = await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
-    eq('fluxo qualificado: não finaliza e manda oferecer horário', [out.isError, !!out.handoff, /consultar_horarios/.test(out.content)], [false, false, true])
+    eq('fluxo qualificado: não finaliza e já traz as duas opções de horário', [out.isError, !!out.handoff, /quinta \(15\/10\) às 9h30.*terça \(20\/10\) às 14h30/.test(out.content)], [false, false, true])
     eq('fluxo qualificado: etapa "lead qualificado"', w.statusId, CRM_MAP.sdr.etapas.qualificado)
     eq('fluxo qualificado: corporação PM RJ pelo órgão', w.fields[CRM_MAP.sdr.campos.corporacao], 598404)
     eq('fluxo qualificado: nota com a análise no card', /Lia · análise do contracheque/.test(w.notes[0] || ''), true)
@@ -154,7 +158,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('fluxo qualificado: mesmo contracheque não analisa duas vezes', [w.notes.length, /já foi analisado/.test(repetido.content)], [1, true])
 
     const c1 = await runTool(ctx(port, transcricao), 'consultar_horarios', {})
-    eq('agenda: oferece as duas opções certas', /quinta \(15\/10\) às 9h30.*terça \(20\/10\) às 14h30/.test(c1.content), true)
+    eq('agenda: lead recusou, a próxima rodada oferece outras', /quinta \(15\/10\) às 10h/.test(c1.content) && !/9h30 \[/.test(c1.content.split('Outras')[0]), true)
     let ag = await runTool(ctx(port, `${transcricao}\npode ser sexta às 10h`, 'pode ser sexta às 10h'), 'agendar_reuniao', { data_hora: '2026-10-16T10:00', formato: 'online', evidencia: 'pode ser sexta às 10h' })
     eq('agenda: sexta é recusada', [ag.isError, /não está na agenda/.test(ag.content)], [true, true])
     ag = await runTool(ctx(port, transcricao, 'ok'), 'agendar_reuniao', { data_hora: '2026-10-15T09:30', formato: 'online', evidencia: 'quinta 9h30 então' })

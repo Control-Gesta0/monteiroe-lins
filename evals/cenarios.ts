@@ -12,6 +12,7 @@ const tomHumano = { nome: 'tom humano: sem travessão, abertura encenada ou res�
 const semFallback = { nome: 'nenhuma resposta caiu no texto de segurança', fn: (_w: World, t: T) => t.every(x => !x.guard.includes('fallback')) }
 const usou = (tool: string) => ({ nome: `chamou ${tool}`, fn: (_w: World, t: T) => t.some(x => x.tools.includes(tool)) })
 const naoUsou = (tool: string) => ({ nome: `NÃO chamou ${tool}`, fn: (_w: World, t: T) => !t.some(x => x.tools.includes(tool)) })
+const comDiaDaSemana = { nome: 'todo horário oferecido traz o dia da semana', fn: (_w: World, t: T) => t.every(x => !/\d{2}\/\d{2}/.test(x.resposta) || /(terça|quarta|quinta) \(\d{2}\/\d{2}\)/.test(x.resposta)) }
 const semValor = { nome: 'não cita valor em R$', fn: (_w: World, t: T) => t.every(x => !/R\$\s?\d/.test(x.resposta)) }
 
 const CONTRACHEQUE_QUALIFICA = [
@@ -55,8 +56,8 @@ export const CENARIOS: Cenario[] = [
     msgs: ['isso é de graça? quanto vou pagar?'],
     checks: [umaPergunta, semFallback, tomHumano, semValor],
     criterios: [
-      'Responde primeiro que a análise é gratuita e que o valor da ação é apresentado na reunião, e só depois pede o contracheque',
-      'Não cita nenhum valor de honorários nem forma de pagamento',
+      'Responde primeiro que a análise é gratuita e que o valor é tratado com o advogado na reunião, e só depois pede o contracheque',
+      'Não informa número/valor de honorários nem forma de pagamento (dizer que o valor depende do caso é permitido)',
     ],
   },
   {
@@ -67,7 +68,7 @@ export const CENARIOS: Cenario[] = [
     checks: [umaPergunta, semFallback, tomHumano],
     criterios: [
       'Não promete resultado e não cita chance ou porcentagem de vitória',
-      'Diz que quem avalia o caso é o advogado, e volta a pedir o contracheque',
+      'Encaminha a avaliação do caso (chance ou resultado) para o advogado, e volta a pedir o contracheque',
     ],
   },
   {
@@ -79,7 +80,7 @@ export const CENARIOS: Cenario[] = [
     criterios: [
       'Diz que o escritório foi fundado por um policial',
       'Cita o endereço na Rua da Quitanda, no Centro do Rio',
-      'Não pressiona o lead',
+      'Não pressiona o lead: sem urgência, insistência ou ameaça de perder a oportunidade (oferecer o registro da OAB ou pedir o contracheque numa pergunta simples é permitido)',
     ],
   },
   {
@@ -88,14 +89,14 @@ export const CENARIOS: Cenario[] = [
     historico: [['in', 'oi'], ['out', ABERTURA]],
     msgs: [CONTRACHEQUE_QUALIFICA],
     checks: [
-      umaPergunta, semFallback, tomHumano, usou('analisar_contracheque'), usou('consultar_horarios'), naoUsou('agendar_reuniao'),
+      umaPergunta, semFallback, tomHumano, comDiaDaSemana, usou('analisar_contracheque'), naoUsou('agendar_reuniao'),
       { nome: 'lead em "lead qualificado"', fn: (w: World) => w.statusId === 112457304 },
       { nome: 'cita 59,6% e R$ 1.617', fn: (_w: World, t: T) => /59,6\s?%/.test(t[0].resposta) && /1\.617/.test(t[0].resposta) },
       { nome: 'oferece dois horários em terça/quarta/quinta', fn: (_w: World, t: T) => (t[0].resposta.match(/\b(terça|quarta|quinta)\b/gi) || []).length >= 2 && !/\b(segunda|sexta)\b/i.test(t[0].resposta) },
     ],
     criterios: [
       'Mostra a porcentagem comprometida e a redução estimada usando "pode baixar cerca de" (sem afirmar que vai baixar)',
-      'Oferece exatamente duas opções de horário e pergunta qual fica melhor',
+      'Oferece exatamente duas opções de horário (dia e hora) e pergunta qual das duas o lead prefere',
     ],
   },
   {
@@ -116,10 +117,10 @@ export const CENARIOS: Cenario[] = [
     state: QUALIFICADO,
     historico: [['in', 'oi'], ['out', ABERTURA], ['in', CONTRACHEQUE_QUALIFICA], ['out', 'João, pela análise 59,6% da sua renda líquida tá indo pra consignado. O decreto do RJ limita em 40%, e com a ação a parcela pode baixar cerca de R$ 1.617 por mês. Vamos marcar uma conversa com o advogado?']],
     msgs: ['pode ser sexta de manhã?'],
-    checks: [umaPergunta, semFallback, tomHumano, naoUsou('agendar_reuniao'), { nome: 'não oferece sexta', fn: (_w: World, t: T) => !/sexta \(\d/.test(t[0].resposta) }],
+    checks: [umaPergunta, semFallback, tomHumano, naoUsou('agendar_reuniao'), usou('consultar_horarios'), comDiaDaSemana, { nome: 'não oferece sexta', fn: (_w: World, t: T) => !/sexta \(\d/.test(t[0].resposta) }],
     criterios: [
       'Explica que as reuniões são quinta o dia todo e terça e quarta à tarde',
-      'Oferece duas opções válidas no lugar',
+      'Oferece duas opções concretas (dia e hora) em dias válidos no lugar',
     ],
   },
   {

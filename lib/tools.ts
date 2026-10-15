@@ -318,9 +318,12 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
 
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
   switch (r.decisao) {
-    case 'qualificado':
+    case 'qualificado': {
       await moverSdr(port, sdr.etapas.qualificado)
-      return ok(`QUALIFICADO. Comprometimento da renda líquida com consignado: ${pct(r.totais.comprometimento)}. Redução mensal estimada (teto de 40%): ${brl(r.reducaoMensal)}. Mostre esses dois números ao lead com "pode baixar cerca de", diga que o próximo passo é a conversa com o advogado e chame consultar_horarios para oferecer dois horários.`)
+      // Os horários já vão junto: o modelo às vezes perguntava "posso passar os horários?" e gastava um turno do lead
+      const agenda = await consultarHorarios(ctx)
+      return ok(`QUALIFICADO. Comprometimento da renda líquida com consignado: ${pct(r.totais.comprometimento)}. Redução mensal estimada (teto de 40%): ${brl(r.reducaoMensal)}. Na MESMA mensagem: mostre esses dois números com "pode baixar cerca de", diga que o próximo passo é a conversa com o advogado e já ofereça os dois horários abaixo, perguntando qual o lead prefere. ${agenda.content}`)
+    }
     case 'renda_abaixo':
     case 'alivio_baixo': {
       await port.addTags([sdr.desqualificacao.tag])
