@@ -3,7 +3,7 @@ import path from 'path'
 import OpenAI from 'openai'
 import { CRM_MAP, type Porta } from './crm-map'
 import { addUsage, emptyUsage, type Usage } from './execlog'
-import { checkReply, keepLastQuestion, semTravessao, type Violation } from './guards'
+import { checkReply, keepLastQuestion, paraWhatsApp, semTravessao, type Violation } from './guards'
 import type { ChatMsg } from './history'
 import { aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
 import { renderTemplate } from './base-core'
@@ -111,8 +111,9 @@ export function createBrain(opts: LlmOptions) {
 
   /** Reescreve uma vez se a trava pegou algo; se insistir, sai o texto seguro. */
   async function enforce(messages: Msg[], bruto: string, usage: Usage, handoff: boolean, lastLead: string): Promise<{ text: string; guard: string[] }> {
-    const text = semTravessao(bruto)
-    const marca = text !== bruto ? ['travessão: trocado em código'] : []
+    const semTrav = semTravessao(bruto)
+    const text = paraWhatsApp(semTrav)
+    const marca = semTrav !== bruto ? ['travessão: trocado em código'] : []
     const v1 = checkReply(text)
     if (!v1.length) return { text, guard: marca }
     if (v1.every(v => v.regra === 'mais de uma pergunta')) {
@@ -125,7 +126,7 @@ export function createBrain(opts: LlmOptions) {
       { role: 'system', content: `[TRAVA DO SISTEMA] Sua resposta NÃO foi enviada porque violou: ${v1.map((v: Violation) => `${v.regra} ("${v.trecho}")`).join('; ')}. Reescreva a mensagem inteira respeitando o prompt, com NO MÁXIMO um ponto de interrogação. Responda só com o texto do WhatsApp.` },
     ]
     const c = await call(fix, null, usage)
-    const text2 = semTravessao((c.message?.content || '').trim())
+    const text2 = paraWhatsApp(semTravessao((c.message?.content || '').trim()))
     const v2 = checkReply(text2)
     if (!v2.length) return { text: text2, guard: [...marca, ...v1.map(v => `${v.regra}: ${v.trecho}`)] }
     return {

@@ -126,6 +126,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('trava passa: resultado com "pode baixar cerca de"', regras('João, pela análise **59,6%** da sua renda líquida tá indo pra consignado. O decreto do RJ limita em 40%, e com a ação a parcela pode baixar cerca de **R$ 1.617** por mês. Vamos marcar uma conversa com o advogado pra ver os detalhes?'), [])
   eq('trava passa: "não tem garantia de resultado"', regras('Não tem garantia de resultado, quem avalia é o advogado.'), [])
   eq('trava passa: "não dá pra garantir que você vai ganhar"', regras('Não dá pra garantir que você vai ganhar, isso o advogado avalia.'), [])
+  eq('trava passa: "não posso falar em chance de vitória"', regras('Eu não posso falar em chance de vitória, isso o advogado avalia.'), [])
+  eq('trava: "80% de chance" ainda bloqueia', regras('Você tem 80% de chance de ganhar.'), ['citou chance de vitória'])
   eq('trava passa: "a parcela não vai baixar"', regras('Nesse caso a parcela não vai baixar muito.'), [])
   eq('trava: promessa depois de outra frase negativa ainda bloqueia', regras('Não se preocupe. Você vai ganhar.'), ['prometeu resultado'])
   eq('trava passa: honorários sem valor', regras('O valor depende do caso, e o advogado apresenta na reunião, já com a sua análise em mãos.'), [])
@@ -224,6 +226,9 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   // ---------- 9. Central: diário → marcos (zero token) ----------
   const { buildExecutionData, contarMarcos, toExecution } = await import('../lib/central-data')
   const { mascararPII } = await import('../lib/guards')
+  const { paraWhatsApp } = await import('../lib/guards')
+  eq('whatsapp: **negrito** do Markdown vira *negrito*', paraWhatsApp('pela análise **59,6%** e **R$ 1.617** por mês'), 'pela análise *59,6%* e *R$ 1.617* por mês')
+  eq('whatsapp: asterisco simples fica', paraWhatsApp('*quinta (16/10) às 10h*'), '*quinta (16/10) às 10h*')
   eq('central: máscara de CPF, telefone e e-mail', mascararPII('cpf 123.456.789-09, zap (21) 99876-5432, a@b.com, parcela R$ 1.617'), 'cpf [cpf], zap [telefone], [email], parcela R$ 1.617')
   const agora = Date.parse('2026-10-15T15:00:00Z')
   const ex = (h: number, leadId: number, o: Record<string, unknown>) => ({ at: new Date(agora - h * 3600_000).toISOString(), leadId, tipo: 'resposta', ...o }) as any

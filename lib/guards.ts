@@ -108,3 +108,8 @@ export function mascararPII(texto: string): string {
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, '[cpf]')
     .replace(/(?:\+?55\s?)?\(?\b\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b/g, '[telefone]')
 }
+
+/** Negrito do WhatsApp é UM asterisco de cada lado: o modelo escreve **x** (Markdown) e o lead veria os asteriscos sobrando. */
+export function paraWhatsApp(text: string): string {
+  return text.replace(/\*\*([^*\n]+?)\*\*/g, '*$1*').replace(/__([^_\n]+?)__/g, '_$1_')
+}
