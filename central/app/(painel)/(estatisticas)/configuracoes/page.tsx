@@ -19,7 +19,7 @@ export default function Configuracoes() {
           <Linha icon={Server} titulo="Agente (diário de execuções)" ok={!!exec && !execErro && !exec.saude24h.erros} carregando={!exec && !execErro}
             texto={execErro || (exec ? `${exec.saude24h.erros ? `${exec.saude24h.erros} erro(s) em ${exec.saude24h.total} execuções nas últimas 24h` : `sem erro nas últimas 24h (${exec.saude24h.total} execuções)`} · ${exec.cobertura.registros} no diário · modelo ${exec.modelo}` : 'verificando…')} />
           <Linha icon={Database} titulo="CRM (Kommo)" ok={crmOk} carregando={carregando}
-            texto={liveErro || (live ? (live.saude.crmOk ? `Mapa conferido: etapas do ${live.pipeline.nome}, campos da Lia, tipos de tarefa e motivos de perda batem com a conta · ${live.leads.total} leads no funil` : `${live.saude.problemas.length} divergência(s)`) : 'verificando…')} />
+            texto={liveErro || (live ? (live.saude.crmOk ? `Mapa conferido: etapas do ${live.pipeline.nome}, campos da Lia, tipos de tarefa e motivos de perda batem com a conta · ${live.leads.abertas} leads abertos no funil` : `${live.saude.problemas.length} divergência(s)`) : 'verificando…')} />
           <Linha icon={Tags} titulo="Quem a Lia atende" ok neutro carregando={!live}
             texto={live ? `${regraGate(live.regras)} Agenda: ${live.regras.expediente}.` : 'verificando…'} />
         </div>

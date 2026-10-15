@@ -133,8 +133,8 @@ export default function Operacao() {
           {live && (
             <div className="grid grid-cols-3 gap-3">
               <Mini label="Abertos" value={live.leads.abertas} color="#06b6d4" />
-              <Mini label="Venda ganha" value={live.leads.ganhas} color="#22c55e" />
-              <Mini label="Venda perdida" value={live.leads.perdidas} color="#737373" />
+              <Mini label="Ganhos em 30 dias" value={live.leads.ganhas} color="#22c55e" />
+              <Mini label="Perdidos em 30 dias" value={live.leads.perdidas} color="#737373" />
             </div>
           )}
           <div className="panel p-4 md:p-7 space-y-4">

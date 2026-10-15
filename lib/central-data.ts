@@ -283,6 +283,7 @@ export interface LiveData {
   respostaMedianaSegundos: number | null
   pipeline: { nome: string }
   funil: FunilEtapa[]
+  /** abertas = leads nas etapas abertas hoje · ganhas/perdidas = fechados nos últimos 30 dias */
   leads: { total: number; abertas: number; ganhas: number; perdidas: number; comIA: number; tagsDisponiveis: boolean }
   regras: { modoGate: string; gateTag: string; humanTag: string; expediente: string }
   saude: { crmOk: boolean; problemas: string[] }

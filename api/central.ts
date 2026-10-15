@@ -5,7 +5,7 @@ import { CONFIG } from '../lib/config'
 import { checkCrm } from '../lib/crm-check'
 import { CRM_MAP } from '../lib/crm-map'
 import { readExecs } from '../lib/execlog'
-import { leadsDoFunil } from '../lib/kommo'
+import { leadsFechadosDesde, leadsInStatuses } from '../lib/kommo'
 
 /**
  * Leitura da Central (painel). Só leitura, zero tokens.
@@ -36,7 +36,13 @@ async function live(): Promise<LiveData> {
   let leads: KommoLeadResumo[] = []
   if (mapa.etapas.length) {
     try {
-      leads = await leadsDoFunil(CRM_MAP.sdr.pipelineId)
+      // Abertos: todas as etapas menos ganho/perdido (a API devolve os mais antigos primeiro: ler tudo truncaria nos fechados)
+      const abertas = mapa.etapas.filter(e => e.id !== 142 && e.id !== 143).map(e => e.id)
+      const [abertos, fechados] = await Promise.all([
+        leadsInStatuses(CRM_MAP.sdr.pipelineId, abertas),
+        leadsFechadosDesde(CRM_MAP.sdr.pipelineId, Math.floor(Date.now() / 1000) - 30 * 86400),
+      ])
+      leads = [...abertos, ...fechados]
     } catch (e) {
       problemas.push(`O Kommo não respondeu à leitura do funil: ${(e instanceof Error ? e.message : String(e)).slice(0, 160)}`)
     }

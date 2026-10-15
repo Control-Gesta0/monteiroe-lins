@@ -154,3 +154,15 @@ export async function leadsDoFunil(pipelineId: number): Promise<KommoLead[]> {
   }
   return out
 }
+
+/** Leads fechados (ganho/perdido) de um funil desde `desdeS` (epoch s). */
+export async function leadsFechadosDesde(pipelineId: number, desdeS: number): Promise<KommoLead[]> {
+  const out: KommoLead[] = []
+  for (let page = 1; page <= 10; page++) {
+    const r = await kommo<{ _embedded?: { leads?: KommoLead[] } }>('GET', `/api/v4/leads?limit=250&page=${page}&filter[pipeline_id]=${pipelineId}&filter[closed_at][from]=${desdeS}`)
+    const leads = r._embedded?.leads || []
+    out.push(...leads)
+    if (leads.length < 250) break
+  }
+  return out
+}
