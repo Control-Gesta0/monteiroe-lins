@@ -288,5 +288,21 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const automatica = (t: string) => CRM_MAP.saidasAutomaticas.some(re => re.test(t))
   eq('saída: template de boas-vindas com nome é automático', automatica('Oi, João! Aqui é a Lia, assistente virtual da Monteiro & Lins.'), true)
   eq('saída: mensagem do comercial é humana', automatica('Oi João, aqui é a Patrícia do escritório, recebi seu contracheque.'), false)
+
+  // ---------- 9. Robô de recebimento (lead sem a Lia manda o contracheque em Qualificação) ----------
+  const { motivoSemAgradecimento } = await import('../lib/recebimento')
+  const rec = { ...CRM_MAP.recebimento, ativo: true }
+  const emQualif = { pipeline_id: CRM_MAP.sdr.pipelineId, status_id: CRM_MAP.sdr.etapas.qualificacao, tags: [] as string[] }
+  const motivo = (kind: Parameters<typeof motivoSemAgradecimento>[0], l = emQualif, c = rec) => motivoSemAgradecimento(kind, l, c, 'lia', 'atendimento-humano')
+  eq('recebimento: foto em Qualificação agradece', motivo('image'), undefined)
+  eq('recebimento: PDF em Qualificação agradece', motivo('document'), undefined)
+  eq('recebimento: áudio não', motivo('audio'), 'não é foto nem documento')
+  eq('recebimento: texto sem anexo não', motivo(null), 'não é foto nem documento')
+  eq('recebimento: outra etapa não', motivo('image', { ...emQualif, status_id: CRM_MAP.sdr.etapas.entrada }), 'fora da etapa do robô')
+  eq('recebimento: outro funil não', motivo('image', { ...emQualif, pipeline_id: 1 }), 'fora da etapa do robô')
+  eq('recebimento: lead com a Lia não (ela analisa)', motivo('image', { ...emQualif, tags: ['LIA'] }), 'a Lia atende este lead')
+  eq('recebimento: atendimento humano não', motivo('image', { ...emQualif, tags: ['atendimento-humano'] }), 'tag "atendimento-humano"')
+  eq('recebimento: desligado não manda', motivo('image', emQualif, { ...rec, ativo: false }), 'robô de recebimento desligado')
+  eq('recebimento: a mensagem do robô não pausa a IA', automatica(CRM_MAP.recebimento.texto), true)
   return 0
 }

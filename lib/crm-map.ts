@@ -90,7 +90,21 @@ export const CRM_MAP = {
   textoSeguroFinal: `Obrigada. ${TEXTO_24H}`,
 
   /** Saídas que NÃO são de humano (template de abertura disparado pelo Salesbot): não pausam a IA. */
-  saidasAutomaticas: [/Aqui é a Lia, assistente virtual/i] as RegExp[],
+  saidasAutomaticas: [/Aqui é a Lia, assistente virtual/i, /em breve enviaremos a sua análise/i] as RegExp[],
+
+  /**
+   * Robô de recebimento (pedido da Patrícia, 16/10/2026), para os leads que a Lia ainda NÃO atende:
+   * lead em Qualificação mandou foto ou PDF → uma mensagem fixa de agradecimento, sem IA.
+   * Lead com a tag da Lia não recebe: ela mesma analisa e responde.
+   * O texto precisa continuar batendo com saidasAutomaticas, senão a mensagem conta como humano.
+   */
+  recebimento: {
+    ativo: false, // liga quando a Patrícia mandar o texto final
+    etapas: [85921943] as number[], // Qualificação do Funil/SDR
+    /** no máximo uma mensagem por lead nesta janela (o contracheque costuma vir em 2 ou 3 fotos) */
+    janelaHoras: 72,
+    texto: 'Agradecemos o envio! Em breve enviaremos a sua análise.\n\nAtenciosamente,\nMonteiro & Lins Advocacia',
+  },
 
   midia: {
     maxTokens: 3000,

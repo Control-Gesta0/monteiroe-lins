@@ -68,6 +68,9 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 
 ## Pontos de atenção
 
+- **Robô de recebimento** (pedido da Patrícia em 16/10/2026): lead em Qualificação, sem a tag `lia`, que manda foto ou PDF recebe uma vez (janela de 72h) o agradecimento fixo de `CRM_MAP.recebimento.texto`, pelo mesmo Salesbot da Lia. Sem IA e sem ler o arquivo. Está **desligado** (`ativo: false`) até o escritório mandar o texto final. Quem tem a tag `lia` não recebe: a Lia analisa e responde.
+- **Mídia de quem não é atendido pela Lia não vai mais para o modelo** (desde 16/10/2026). Antes, toda foto e PDF da conta era lido pela IA, inclusive documentos de clientes (um extrato bancário e um contracheque nas primeiras 24h). Agora fica só "[documento recebido]" no histórico.
+
 - **Bots que já existem na conta (42, lidos em 14/10/2026).** Conferir na tela, antes de ligar a Lia, o gatilho destes, que estão ativos e podem responder ao mesmo lead (um número, um agente):
   - `Fora de horário` (93081): se responde mensagem recebida fora do horário, vai responder junto com a Lia;
   - `bOT - TRÁFEGO - LEC` (93083): provavelmente atende os leads do formulário "[LEC]", os mesmos da Lia;

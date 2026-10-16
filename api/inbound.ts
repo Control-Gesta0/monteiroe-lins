@@ -6,7 +6,9 @@ import { CONFIG } from '../lib/config'
 import { CRM_MAP } from '../lib/crm-map'
 import { logExec } from '../lib/execlog'
 import { appendMessage, isEchoOfSent, markHumanSpoke, seenMessage } from '../lib/history'
+import { getLead, type KommoLead } from '../lib/kommo'
 import { mediaKind, mediaToText } from '../lib/media'
+import { agradecerRecebimento, liaAtende } from '../lib/recebimento'
 import { isResetCommand, resetLead } from '../lib/reset'
 import { sendReply } from '../lib/transport'
 
@@ -73,13 +75,20 @@ export function parseKommoWebhook(raw: unknown): { accountId: string; msgs: Inbo
 
 async function ingest(msgs: InboundMsg[], webhookId: string): Promise<void> {
   const leads = new Set<number>()
+  const cacheLead = new Map<number, Promise<KommoLead>>()
+  const lead = (id: number) => { if (!cacheLead.has(id)) cacheLead.set(id, getLead(id)); return cacheLead.get(id)! }
   for (const m of msgs) {
     try {
       if (await seenMessage(`kommo:${m.id}`)) continue
       let text = (m.text || '').trim()
       const kind = mediaKind(m.attachType)
       const outgoing = m.direction === 'outgoing'
-      if (kind && !outgoing) text = await mediaToText(kind, m.attachLink, text)
+      if (kind && !outgoing) {
+        const l = await lead(m.leadId).catch(e => { console.error(`[inbound] lead ${m.leadId} não abriu:`, e); return null })
+        if (l) await agradecerRecebimento(l, kind).catch(e => console.error(`[recebimento] lead ${m.leadId}:`, e))
+        // A conta inteira manda add_message: só a mídia de lead com a Lia vai para o modelo (sem o lead, lê como antes)
+        text = !l || liaAtende(l) ? await mediaToText(kind, m.attachLink, text) : [text, `[${kind === 'audio' ? 'áudio' : kind === 'image' ? 'imagem' : 'documento'} recebido]`].filter(Boolean).join('\n')
+      }
       if (!text) continue
 
       // Eco do que o NOSSO bot enviou: já está no histórico
