@@ -68,6 +68,9 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 
 ## Pontos de atenção
 
+- **Páginas públicas** (`public/`): `/` e `/privacidade`, exigidas pelo Google para publicar o app OAuth. O `outputDirectory: "public"` do `vercel.json` também impede que o código e os prompts sejam servidos como arquivo estático (até 22/10/2026, `/lib/*.ts` e `/prompts/*.md` abriam no navegador).
+- **Google Agenda:** cliente OAuth "Aplicativo da Web" no projeto LIA - KOMMO (`171451440525-…`), app externo. O primeiro cliente (`165859030213-…`) era "App para computador" num projeto interno e não servia.
+
 - **Robô de recebimento** (pedido da Patrícia em 16/10/2026): lead em Qualificação, sem a tag `lia`, que manda foto ou PDF recebe uma vez (janela de 72h) o agradecimento fixo de `CRM_MAP.recebimento.texto`, pelo mesmo Salesbot da Lia. Sem IA e sem ler o arquivo. Está **desligado** (`ativo: false`) até o escritório mandar o texto final. Quem tem a tag `lia` não recebe: a Lia analisa e responde.
 - **Mídia de quem não é atendido pela Lia não vai mais para o modelo** (desde 16/10/2026). Antes, toda foto e PDF da conta era lido pela IA, inclusive documentos de clientes (um extrato bancário e um contracheque nas primeiras 24h). Agora fica só "[documento recebido]" no histórico.
 
