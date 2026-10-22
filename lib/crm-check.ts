@@ -1,6 +1,8 @@
 import { CONFIG } from './config'
 import { CRM_MAP } from './crm-map'
-import { googleAtivo, googleConfigurado, nomeDaAgenda } from './google-calendar'
+import { duasOpcoes, horariosLivres } from './agenda'
+import { googleAtivo, googleConfigurado, intervalosOcupados, listarEventos, nomeDaAgenda } from './google-calendar'
+import { kommoPort } from './port'
 import { kommoGet } from './kommo'
 import { loadPromptFile } from './llm'
 
@@ -102,7 +104,16 @@ export async function checkCrm(): Promise<CrmCheck> {
   if (!googleConfigurado()) avisos.push('Google Agenda não configurada: a Lia usa só a grade do crm-map e as reuniões do Kommo.')
   else if (!(await googleAtivo())) avisos.push(`Google Agenda sem autorização: o dono da agenda precisa abrir ${CONFIG.selfUrl}/api/google-oauth?secret=...`)
   else {
-    try { avisos.push(`Google Agenda ligada: ${await nomeDaAgenda()}`) } catch (e) { problems.push(`Google Agenda não abre: ${e instanceof Error ? e.message : String(e)}`) }
+    try {
+      avisos.push(`Google Agenda ligada: ${await nomeDaAgenda()}`)
+      // Prova de leitura: o que a Lia enxerga e o que ela ofereceria agora (mesmo caminho do consultar_horarios)
+      const cfg = CRM_MAP.agenda
+      const agora = Math.floor(Date.now() / 1000)
+      const eventos = intervalosOcupados(await listarEventos(agora, agora + (cfg.diasAFrente + 2) * 86_400), cfg.offsetUtc)
+      const livres = horariosLivres(agora, await kommoPort(0).horariosOcupados(), cfg)
+      const opcoes = duasOpcoes(livres, cfg).map(s => s.rotulo).join(' ou ') || 'nenhum horário livre'
+      avisos.push(`Agenda: ${eventos.length} compromisso(s) na Google Agenda nos próximos ${cfg.diasAFrente} dias · ${livres.length} horário(s) livre(s) na grade · a Lia ofereceria ${opcoes}`)
+    } catch (e) { problems.push(`Google Agenda não abre: ${e instanceof Error ? e.message : String(e)}`) }
   }
 
   return { problems, avisos, etapas }
