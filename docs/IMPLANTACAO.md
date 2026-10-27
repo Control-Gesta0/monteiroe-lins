@@ -77,6 +77,12 @@ O WhatsApp Lite do Kommo não entrega foto para a Lia (só um aviso "você receb
 - **Card**: a Stevo cria o card em "leads de entrada"; o app aceita e leva para Funil/SDR > Qualificação. Quem já tem card aberto em outro funil (cliente) segue no card dele. A tag `lia` só entra sozinha com `STEVO_TAG_LIA=1` (fim da rampagem).
 - **Painel de gestão**: `https://lia-monteiro-lins.vercel.app/api/painel?k=<PAINEL_SECRET>` (a chave do escritório; com o WEBHOOK_SECRET aparece também a URL do webhook de cada número). Conexão dos WhatsApps, implantação, resumo, um funil por aba (achados ao vivo pelo nome) e a operação da Lia. Cache de 90 s.
 
+## Pedidos da Dra. Patrícia (27/10/2026)
+
+- **Resultado da análise**: quando qualifica, sai pelo sistema (sem o modelo redigir) o texto dela, editável na Central (Ensinar › "Resultado da análise"): "{nome}, após a análise, verificamos que a sua renda está comprometida em X%. Com a ação de readequação de margem, a sua parcela pode baixar cerca de R$ Y por mês. O que acha de agendarmos uma reunião com o advogado na A ou na B?". Ela falou em "economia de até X%": ficou em reais e com "cerca de", porque "até X%" é promessa de redução em porcentagem (trava da OAB).
+- **Cobrança do contracheque**: a Lia pediu e o lead não mandou → lembretes 2 h, 1 dia e 3 dias depois, de segunda a sábado das 8h às 20h, pelo QStash (`QSTASH_TOKEN`/`QSTASH_URL` na Vercel; `COBRANCA_CONTRACHEQUE=0` desliga). Na hora de sair confere se ainda falta (mesmo pedido, sem análise, sem encerramento, lead não escreveu, equipe não falou, tag da Lia). Na 2ª cobrança o card vai para "follow - não responde" e volta para Qualificação quando o lead responde. Textos editáveis na Central.
+- **Tarefa do agendamento**: tipo "Meeting" (2). O "Agendamento IA" (4231636) é de outra integração e o Kommo recusa (403).
+
 ## Pontos de atenção
 
 - **Páginas públicas** (`public/`): `/` e `/privacidade`, exigidas pelo Google para publicar o app OAuth. O `outputDirectory: "public"` do `vercel.json` também impede que o código e os prompts sejam servidos como arquivo estático (até 22/10/2026, `/lib/*.ts` e `/prompts/*.md` abriam no navegador).
