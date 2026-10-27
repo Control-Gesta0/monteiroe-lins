@@ -66,6 +66,17 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 11. **E2E com número real:** lead de teste com a tag `lia` e o ID em `TEST_LEAD_IDS`. Mandar contracheque de teste, conferir mensagem no celular, card (nota da análise, Agendamento, tarefa, etapa) e `/api/executions`. `reset` recomeça.
 12. **Rampagem:** 1 lead → 10 → todos. Nas duas primeiras semanas, desqualificados ficam em Qualificação com a tag `lia-desqualificou` para o comercial conferir. Depois de 20 casos batendo com a planilha: `sdr.desqualificacao.moverParaPerdido = true`.
 
+## WhatsApp pela Stevo e painel de gestão
+
+O WhatsApp Lite do Kommo não entrega foto para a Lia (só um aviso "você recebeu uma mensagem de mídia", provado em 27/10/2026). Com a Stevo, o arquivo vem no webhook e a Lia baixa pela API dela.
+
+- **Números** (`lib/canais.ts`): `ml-sdr` (21) 96795-0218 com a Lia; `ml-clientes` (21) 97207-5536 e `ml-empresarial` (21) 99077-9065 só registram a conversa (painel e fila "sem resposta").
+- **Webhook** de cada instância na Stevo: `https://lia-monteiro-lins.vercel.app/api/canal-hint?canal=<canal>&s=<chave do número>`, eventos MESSAGE, SEND_MESSAGE e CONNECTION. A chave é `HMAC(WEBHOOK_SECRET, "stevo:<canal>")` (32 hex); o painel, aberto com o WEBHOOK_SECRET, tem o botão "Copiar URL do webhook". O primeiro evento ensina o token e o servidor da instância (não precisa de `STEVO_INSTANCES`).
+- **Links de conexão (QR)**: variável `STEVO_LINKS` na Vercel, JSON `{"ml-sdr": "https://...", ...}` (tem token: fora do git).
+- **Virada da Lia**: `CANAL_LIA=stevo` na Vercel + redeploy. A partir daí o `/api/inbound` (Kommo) é ignorado, a Lia ouve só a Stevo e responde pela API da Stevo no mesmo número (sem Salesbot). Antes de virar: Stevo conectada no (21) 96795-0218, integração da Stevo com o Kommo ligada e WhatsApp Lite desse número desconectado do Kommo (senão a conversa aparece em dobro no card).
+- **Card**: a Stevo cria o card em "leads de entrada"; o app aceita e leva para Funil/SDR > Qualificação. Quem já tem card aberto em outro funil (cliente) segue no card dele. A tag `lia` só entra sozinha com `STEVO_TAG_LIA=1` (fim da rampagem).
+- **Painel de gestão**: `https://lia-monteiro-lins.vercel.app/api/painel?k=<PAINEL_SECRET>` (a chave do escritório; com o WEBHOOK_SECRET aparece também a URL do webhook de cada número). Conexão dos WhatsApps, implantação, resumo, um funil por aba (achados ao vivo pelo nome) e a operação da Lia. Cache de 90 s.
+
 ## Pontos de atenção
 
 - **Páginas públicas** (`public/`): `/` e `/privacidade`, exigidas pelo Google para publicar o app OAuth. O `outputDirectory: "public"` do `vercel.json` também impede que o código e os prompts sejam servidos como arquivo estático (até 22/10/2026, `/lib/*.ts` e `/prompts/*.md` abriam no navegador).

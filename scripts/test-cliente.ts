@@ -332,5 +332,24 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('stevo: saída do número é "de mim" e sem nome', [saida?.deMim, saida?.nome], [true, ''])
   eq('stevo: chave do webhook é fixa por número e diferente entre números', [chaveWebhook('ml-sdr', 'x') === chaveWebhook('ml-sdr', 'x'), chaveWebhook('ml-sdr', 'x') === chaveWebhook('ml-clientes', 'x'), chaveWebhook('ml-sdr', 'x').length], [true, false, 32])
   eq('stevo: só o número de anúncios tem a Lia', Object.entries(CANAIS).filter(([, c]) => c.ia).map(([n]) => n), ['ml-sdr'])
+
+  // ---------- 13. Painel de gestão (dados sintéticos, sem rede) ----------
+  const { montarFunil, destaquesDoFunil, jornadaSdr } = await import('../lib/painel')
+  const { PAGINA_PAINEL } = await import('../lib/painel-html')
+  const agoraS = Math.floor(Date.now() / 1000)
+  const funilSdr = { id: 1, name: 'Funil/SDR', _embedded: { statuses: [
+    { id: 10, name: 'Etapa de leads de entrada', sort: 0, type: 1 }, { id: 11, name: 'Qualificação', sort: 10, type: 0 },
+    { id: 12, name: 'Retorno Imediato/Fazer analise', sort: 20, type: 0 }, { id: 13, name: 'Reunião Agendada', sort: 30, type: 0 },
+    { id: 142, name: 'Ganho', sort: 90, type: 0 }, { id: 143, name: 'Perdido', sort: 91, type: 0 },
+  ] } }
+  const card = (id: number, status: number, extra: Record<string, unknown> = {}) => ({ id, name: `<b>Cliente ${id}</b>`, pipeline_id: 1, status_id: status, responsible_user_id: 7, created_at: agoraS - 86400, updated_at: agoraS - 86400, _embedded: { tags: [{ name: 'lia' }], contacts: [{ id: 100 + id, is_main: true }] }, ...extra })
+  const bruto = { funil: funilSdr, abertos: [card(1, 11), card(2, 12, { updated_at: agoraS - 3 * 86400 }), card(3, 13), card(4, 11, { updated_at: agoraS - 10 * 86400 })], fechados: [card(5, 142), card(6, 143)] } as any
+  const fp = montarFunil(bruto, new Map([[7, 'Patrícia Lins']]), 'x.kommo.com')
+  destaquesDoFunil(fp, bruto, new Map([[7, 'Patrícia Lins']]))
+  const dv = (r: string) => fp.destaques.find(d => d.rotulo === r)
+  eq('painel: etapa de entrada vazia some e as etapas da Lia são marcadas', fp.etapas.map(e => [e.nome, e.n, e.ia]), [['Qualificação', 2, true], ['Retorno Imediato/Fazer analise', 1, true], ['Reunião Agendada', 1, false]])
+  eq('painel: indicadores do SDR', [dv('Com a Lia agora')?.valor, dv('Para analisar (equipe)')?.status, dv('Reuniões marcadas')?.valor, dv('Taxa de fechamento (30 dias)')?.valor, dv('Parados há 7+ dias')?.valor], [3, 'critico', 1, '50%', 1])
+  eq('painel: jornada conta clientes únicos', jornadaSdr(bruto).map(j => j.n), [6, 2, 2, 1])
+  eq('painel: a página escapa o que vem do Kommo e não tem dado nenhum', [PAGINA_PAINEL.includes("replace(/[&<>\"']/g"), /Cliente \d|lia-monteiro/.test(PAGINA_PAINEL)], [true, false])
   return 0
 }
