@@ -10,6 +10,7 @@ import { getLead, type KommoLead } from '../lib/kommo'
 import { mediaKind, mediaToText } from '../lib/media'
 import { agradecerRecebimento, liaAtende } from '../lib/recebimento'
 import { isResetCommand, resetLead } from '../lib/reset'
+import { k, redis } from '../lib/redis'
 import { sendReply } from '../lib/transport'
 
 /**
@@ -24,6 +25,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
   const provided = String(req.headers['x-webhook-secret'] || req.query.secret || '')
   if (!safeEq(provided, CONFIG.webhookSecret)) return res.status(401).json({ error: 'unauthorized' })
+
+  // Diagnóstico (temporário): como o WhatsApp Lite entrega a mídia que chega sem arquivo. Guarda só nomes de campos
+  // e o começo dos valores de anexo/tipo, por 48h, só dos leads de teste, para descobrir onde vem a imagem.
+  try {
+    const bruto = JSON.stringify(req.body ?? '')
+    if ((MIDIA_NAO_CARREGOU.test(bruto) || /attachment/i.test(bruto)) && CONFIG.testLeadIds.some(id => bruto.includes(String(id)))) {
+      const campos: Record<string, string> = {}
+      const andar = (o: unknown, pre: string) => {
+        if (o && typeof o === 'object') for (const [ch, v] of Object.entries(o as Record<string, unknown>)) andar(v, pre ? `${pre}[${ch}]` : ch)
+        else campos[pre] = /attach|type|media|file|link|url/i.test(pre) ? String(o).slice(0, 80) : `(${String(o).length} car.)`
+      }
+      andar(req.body, '')
+      await redis.lpush(k('debug', 'midia'), JSON.stringify({ em: new Date().toISOString(), campos }))
+      await redis.ltrim(k('debug', 'midia'), 0, 19)
+      await redis.expire(k('debug', 'midia'), 48 * 3600)
+    }
+  } catch { /* diagnóstico nunca derruba o webhook */ }
 
   const parsed = parseKommoWebhook(req.body)
   if (!parsed) return res.status(200).json({ ok: false, reason: 'sem message[add]' })
