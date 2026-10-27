@@ -20,6 +20,7 @@ import { filaSemResposta, ultimaAtividade } from './stevo-conversa'
  */
 
 const CACHE = () => k('painel', 'cache')
+const ULTIMO_BOM = () => k('painel', 'ultimo-bom')
 const CACHE_S = 90
 const DIA = 86400
 const PARADO_DIAS = 7
@@ -255,12 +256,23 @@ export async function montarPainel(forcar = false): Promise<Record<string, unkno
     { rotulo: 'Custo da Lia hoje', valor: ia.custoHoje.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) },
   ]
 
+  // Kommo fora do ar na hora: mostra os últimos números bons (com aviso), não um painel vazio
+  let kommoDe: string | null = null
+  if (erroKommo && !funis.length) {
+    const ultimo = await redis.get<string | Record<string, any>>(ULTIMO_BOM()).catch(() => null)
+    const u = (typeof ultimo === 'string' ? JSON.parse(ultimo) : ultimo) as Record<string, any> | null
+    if (u) { funis = u.funis; jornada = u.jornada; perdas = u.perdas; tarefas = u.tarefas; kommoDe = u.geradoEm }
+  }
   const painel = {
-    geradoEm: new Date().toISOString(), cliente: 'Monteiro & Lins', kommoUrl: `https://${sub}`, kommoLigado: true,
+    geradoEm: new Date().toISOString(), kommoDe, cliente: 'Monteiro & Lins', kommoUrl: `https://${sub}`, kommoLigado: true,
     canalLia: CONFIG.canalLia, erroKommo, conexoes, implantacao, estrutura, resumo, jornada, perdas,
     funis: funis.map(({ valor, ...f }) => ({ ...f, valor, valorTexto: valor ? brl(valor) : '' })),
     tarefas, semResposta: semResposta.slice(0, 30), ia,
   }
-  await redis.set(CACHE(), JSON.stringify(painel), { ex: CACHE_S })
+  // Falha no Kommo não fica guardada: a próxima abertura tenta de novo
+  if (!erroKommo) {
+    await redis.set(CACHE(), JSON.stringify(painel), { ex: CACHE_S })
+    await redis.set(ULTIMO_BOM(), JSON.stringify({ geradoEm: painel.geradoEm, funis, jornada, perdas, tarefas }), { ex: 7 * DIA })
+  }
   return painel
 }

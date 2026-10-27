@@ -157,7 +157,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 
   function inicio() {
     var h = ''
-    if (D.erroKommo) h += '<div class="aviso erro">Não consegui ler o Kommo agora: ' + esc(D.erroKommo) + '</div>'
+    if (D.erroKommo) h += '<div class="aviso erro">Não consegui ler o Kommo agora (' + esc(D.erroKommo) + ').' + (D.kommoDe ? ' Os números abaixo são de ' + esc(new Date(D.kommoDe).toLocaleString('pt-BR')) + '.' : '') + ' Clique em Atualizar daqui a pouco.</div>'
         h += '<h2>1. Conectar os WhatsApps <small>abra o link de cada número no computador e leia o QR com o celular daquele número</small></h2>'
     h += '<div class="grid g2" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">' + D.conexoes.map(function (c) {
       var s = c.status === 'conectado' ? 'bom' : c.status === 'desconectado' ? 'critico' : 'atencao'

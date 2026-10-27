@@ -20,11 +20,19 @@ export async function kommo<T = unknown>(metodo: 'GET' | 'POST' | 'PATCH', camin
     const desde = Date.now() - ultimaChamada
     if (desde < 160) await espera(160 - desde)
     ultimaChamada = Date.now()
-    const res = await fetch(`${BASE}${caminho}`, {
-      method: metodo,
-      headers: { Authorization: `Bearer ${CONFIG.kommoToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: corpo === undefined ? undefined : JSON.stringify(corpo),
-    })
+    let res: Response
+    try {
+      res = await fetch(`${BASE}${caminho}`, {
+        method: metodo,
+        headers: { Authorization: `Bearer ${CONFIG.kommoToken}`, 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: corpo === undefined ? undefined : JSON.stringify(corpo),
+        signal: AbortSignal.timeout(20_000),
+      })
+    } catch (e) {
+      // Falha de rede ("fetch failed", tempo esgotado): leitura pode tentar de novo
+      if (metodo === 'GET' && tentativa < 2) { await espera(1000 * (tentativa + 1)); continue }
+      throw new Error(`Kommo ${metodo} ${caminho}: ${e instanceof Error ? e.message : String(e)}`)
+    }
     if ((res.status === 429 || res.status >= 500) && tentativa < 2) { await espera(800 * (tentativa + 1)); continue }
     if (res.status === 204) return {} as T // lista vazia vem sem corpo
     const texto = await res.text()
