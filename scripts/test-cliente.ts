@@ -351,5 +351,21 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('painel: indicadores do SDR', [dv('Com a Lia agora')?.valor, dv('Para analisar (equipe)')?.status, dv('Reuniões marcadas')?.valor, dv('Taxa de fechamento (30 dias)')?.valor, dv('Parados há 7+ dias')?.valor], [3, 'critico', 1, '50%', 1])
   eq('painel: jornada conta clientes únicos', jornadaSdr(bruto).map(j => j.n), [6, 2, 2, 1])
   eq('painel: a página escapa o que vem do Kommo e não tem dado nenhum', [PAGINA_PAINEL.includes("replace(/[&<>\"']/g"), /Cliente \d|lia-monteiro/.test(PAGINA_PAINEL)], [true, false])
+
+  // ---------- 14. Resultado aprovado e cobrança do contracheque ----------
+  eq('nome: primeiro nome de gente; "Lead #123" e telefone não', [bc.primeiroNome('EDUARDO do Vale'), bc.primeiroNome('Lead #21024021'), bc.primeiroNome('+55 21 99999'), bc.primeiroNome('')], ['Eduardo', '', '', ''])
+  eq('resultado: texto da Dra. Patrícia com os números e os horários', bc.resultadoQualificado({}, 'Eduardo', '59,6%', 'R$ 1.617,83', 'na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*'),
+    'Eduardo, após a análise, verificamos que a sua renda está comprometida em *59,6%* com consignados. Com a ação de readequação de margem, a sua parcela pode baixar cerca de *R$ 1.617,83* por mês. O que acha de agendarmos uma reunião com o advogado na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*?')
+  eq('resultado sem nome começa com maiúscula', bc.resultadoQualificado({}, '', '59,6%', 'R$ 1', 'x').slice(0, 20), 'Após a análise, veri')
+  eq('cobrança: "Oi, {nome}!" sem nome vira "Oi!"', [bc.cobranca({}, 2, 'Ana').slice(0, 9), bc.cobranca({}, 2, '').slice(0, 9)], ['Oi, Ana! ', 'Oi! Você '])
+  eq('resultado: trava exige as três variáveis', bc.validarTexto('resultado', 'Sua renda está comprometida.').length, 3)
+  const { emHorarioComercial, chaveCobranca } = await import('../lib/cobranca')
+  const brt = (iso: string) => Date.parse(iso + '-03:00')
+  const hora = (ms: number) => new Date(ms).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', weekday: 'short', hour: '2-digit', minute: '2-digit' })
+  eq('cobrança: dentro do horário fica onde está', emHorarioComercial(brt('2026-10-27T15:10:00')), brt('2026-10-27T15:10:00'))
+  eq('cobrança: depois das 20h vai para 9h do dia seguinte', hora(emHorarioComercial(brt('2026-10-27T21:30:00'))), hora(brt('2026-10-28T09:00:00')))
+  eq('cobrança: madrugada vai para 9h do mesmo dia', hora(emHorarioComercial(brt('2026-10-28T03:00:00'))), hora(brt('2026-10-28T09:00:00')))
+  eq('cobrança: sábado 21h e domingo pulam para segunda 9h', [hora(emHorarioComercial(brt('2026-10-31T21:00:00'))), hora(emHorarioComercial(brt('2026-11-01T11:00:00')))], [hora(brt('2026-11-02T09:00:00')), hora(brt('2026-11-02T09:00:00'))])
+  eq('cobrança: a chave muda com o lead, o lembrete e o pedido', new Set([chaveCobranca(1, 1, 100, 'x'), chaveCobranca(2, 1, 100, 'x'), chaveCobranca(1, 2, 100, 'x'), chaveCobranca(1, 1, 101, 'x')]).size, 4)
   return 0
 }

@@ -38,6 +38,9 @@
     },
     "api/painel.ts": {
       "maxDuration": 60
+    },
+    "api/cobranca.ts": {
+      "maxDuration": 60
     }
   }
 }

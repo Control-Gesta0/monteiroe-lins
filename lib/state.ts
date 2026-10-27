@@ -28,6 +28,8 @@ export interface LeadState {
   analise?: { decisao: string; comprometimento: number; reducaoMensal: number; competencia: string; assinatura: string; em: string }
   /** horários (epoch s) já oferecidos ao lead: o próximo consultar_horarios oferece outros */
   ofertados?: number[]
+  /** quando (ms) a Lia pediu o contracheque pela última vez: só os lembretes dessa cadeia valem */
+  cobrancaDesde?: number
 }
 
 const TTL = 90 * 86400

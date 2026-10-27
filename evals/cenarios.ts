@@ -4,6 +4,7 @@
  */
 import type { Cenario, World } from '../lib/evals-runner'
 import { PADRAO_CODIGO, trouxeTexto, type Textos } from '../lib/base-core'
+import { CRM_MAP } from '../lib/crm-map'
 
 type T = Array<{ resposta: string; tools: string[]; handoff: boolean; guard: string[] }>
 const umaPergunta = { nome: 'no máximo 1 pergunta por resposta', fn: (_w: World, t: T) => t.every(x => (x.resposta.match(/\?/g) || []).length <= 1) }
@@ -102,7 +103,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     ],
     criterios: [
       'Mostra a porcentagem comprometida e a redução estimada usando "pode baixar cerca de" (sem afirmar que vai baixar)',
-      'Oferece exatamente duas opções de horário (dia e hora) e pergunta qual das duas o lead prefere',
+      'Oferece exatamente duas opções de horário (dia e hora) e convida o lead a escolher uma delas (por exemplo "o que acha de agendarmos na X ou na Y?")',
     ],
   },
   {
@@ -138,7 +139,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     checks: [
       usou('consultar_horarios'), usou('agendar_reuniao'),
       { nome: 'lead em Reunião Agendada', fn: (w: World) => w.statusId === 85921951 },
-      { nome: 'tarefa Agendamento IA criada', fn: (w: World) => w.tasks.some(x => x.typeId === 4231636) },
+      { nome: 'tarefa de reunião criada', fn: (w: World) => w.tasks.some(x => x.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento) },
       { nome: 'confirmação pelo código, com dia e hora', fn: (_w: World, x: T) => x[x.length - 1].handoff && /(terça|quarta|quinta) \(\d{2}\/\d{2}\) às \d{1,2}h/.test(x[x.length - 1].resposta) && trouxeTexto(x[x.length - 1].resposta, t.confirmacao.replace(/\{\w+\}/g, '')) },
     ],
     criterios: ['Na primeira resposta oferece dois horários; na segunda confirma dia, hora e formato online, sem pergunta'],

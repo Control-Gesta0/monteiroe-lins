@@ -7,7 +7,7 @@ import type { LeadState } from './state'
 import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
 import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
 import { extrairContracheque } from './contracheque-texto'
-import { PADRAO_CODIGO, confirmacao, type Textos } from './base-core'
+import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos } from './base-core'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -49,6 +49,8 @@ export interface ToolCtx {
   lastAgentText: string
   /** textos da base vigente (Central › Ensinar); sem isso, os padrões do código */
   textos?: Partial<Textos>
+  /** nome do card (o resultado da análise chama o lead pelo primeiro nome) */
+  nome?: string
 }
 
 const texto = (ctx: ToolCtx, id: 'enc_renda_abaixo' | 'enc_alivio_baixo' | 'enc_revisao' | 'enc_atendimento') => ctx.textos?.[id] ?? PADRAO_CODIGO[id]!
@@ -327,10 +329,15 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   switch (r.decisao) {
     case 'qualificado': {
       await moverSdr(port, sdr.etapas.qualificado)
-      // Os horários já vão junto: o modelo às vezes perguntava "posso passar os horários?" e gastava um turno do lead
-      const agenda = await consultarHorarios(ctx).catch(e => agendaIndisponivel(ctx, e))
-      if (agenda.handoff) return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". ${agenda.content}`, { handoff: true })
-      return ok(`QUALIFICADO. Comprometimento da renda líquida com consignado: ${pct(r.totais.comprometimento)}. Redução mensal estimada (teto de 40%): ${brl(r.reducaoMensal)}. Na MESMA mensagem: mostre esses dois números com "pode baixar cerca de", diga que o próximo passo é a conversa com o advogado e já ofereça os dois horários abaixo, perguntando qual o lead prefere. ${agenda.content}`)
+      // O resultado sai no texto aprovado (Dra. Patrícia), com os números e os dois horários: sem o modelo redigir
+      let opcoes: Slot[]
+      try { opcoes = (await escolherOpcoes(ctx)).opcoes } catch (e) {
+        const agenda = await agendaIndisponivel(ctx, e)
+        return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". ${agenda.content}`, { handoff: true })
+      }
+      if (!opcoes.length) return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". Não há horário livre nos próximos dias: diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano).`)
+      const textoResultado = resultadoQualificado(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), brl(r.reducaoMensal), opcoes.map(o => `na *${o.rotulo}*`).join(' ou '))
+      return ok(`QUALIFICADO. O resultado com os dois horários (${listaSlots(opcoes)}) já sai pelo sistema.`, { textoFinal: textoResultado })
     }
     case 'renda_abaixo':
     case 'alivio_baixo': {
@@ -356,18 +363,24 @@ async function agendaIndisponivel(ctx: ToolCtx, e: unknown): Promise<ToolOutcome
   return ok('A agenda não respondeu agora. Diga que a equipe vai propor o horário da reunião por aqui em até 24 horas. Não ofereça horário e não faça pergunta.', { handoff: true })
 }
 
-async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
+/** As duas próximas opções livres (já marcadas como ofertadas) e as reservas. Lança se a agenda não abrir. */
+async function escolherOpcoes(ctx: ToolCtx): Promise<{ opcoes: Slot[]; reserva: Slot[] }> {
   const { port } = ctx
   const cfg = CRM_MAP.agenda
   const state = await port.getState()
-  if (state.analise?.decisao !== 'qualificado') return err('Só ofereça horário depois que analisar_contracheque devolver QUALIFICADO.')
   const livres = horariosLivres(port.agoraS(), await port.horariosOcupados(), cfg)
   const ofertados = state.ofertados || []
   let opcoes = duasOpcoes(livres, cfg, ofertados)
   if (!opcoes.length) opcoes = duasOpcoes(livres, cfg)
+  if (opcoes.length) await port.patchState({ ofertados: [...new Set([...ofertados, ...opcoes.map(o => o.inicio)])] })
+  return { opcoes, reserva: livres.filter(l => !opcoes.some(o => o.inicio === l.inicio)).slice(0, 6) }
+}
+
+async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
+  const state = await ctx.port.getState()
+  if (state.analise?.decisao !== 'qualificado') return err('Só ofereça horário depois que analisar_contracheque devolver QUALIFICADO.')
+  const { opcoes, reserva } = await escolherOpcoes(ctx)
   if (!opcoes.length) return err('Não há horário livre nos próximos dias. Diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano) com a fala do lead como evidência.')
-  await port.patchState({ ofertados: [...new Set([...ofertados, ...opcoes.map(o => o.inicio)])] })
-  const reserva = livres.filter(l => !opcoes.some(o => o.inicio === l.inicio)).slice(0, 6)
   return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: quinta o dia todo, terça e quarta só à tarde.`)
 }
 

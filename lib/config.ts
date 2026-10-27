@@ -57,6 +57,11 @@ export const CONFIG = {
   /** Card novo no número da Lia já ganha a tag de gate (fim da rampagem). Desligado = só quem tem a tag. */
   stevoTagLia: ['1', 'true', 'sim'].includes((process.env.STEVO_TAG_LIA || '').toLowerCase()),
 
+  // Cobrança do contracheque (lib/cobranca.ts): lembretes atrasados pelo QStash. COBRANCA_CONTRACHEQUE=0 desliga.
+  cobrancaContracheque: (process.env.COBRANCA_CONTRACHEQUE || '1') !== '0',
+  qstashUrl: (process.env.QSTASH_URL || 'https://qstash.upstash.io').replace(/\/+$/, ''),
+  qstashToken: process.env.QSTASH_TOKEN || '',
+
   // Painel de gestão (/api/painel): a chave do escritório (só vê o painel)
   painelSecret: process.env.PAINEL_SECRET || '',
 }

@@ -26,6 +26,10 @@ export const ITENS = [
   { id: 'enc_alivio_baixo', grupo: 'encerramentos', titulo: 'Redução pequena demais', ajuda: 'Enviada pelo sistema quando a análise mostra que a parcela baixaria pouco e a ação não compensa.' },
   { id: 'enc_revisao', grupo: 'encerramentos', titulo: 'Contracheque para a equipe conferir', ajuda: 'Enviada quando o contracheque tem descontos que o sistema não reconheceu. Promete resposta em até 24 horas.' },
   { id: 'enc_atendimento', grupo: 'encerramentos', titulo: 'Passagem para a equipe (24 horas)', ajuda: 'Quando o lead já é cliente, pergunta do processo ou pede uma pessoa. Promete resposta em até 24 horas.' },
+  { id: 'resultado', grupo: 'encerramentos', titulo: 'Resultado da análise (qualificado)', ajuda: 'Enviada pelo sistema quando o contracheque qualifica. {comprometimento} vira "59,6%", {economia} vira "R$ 1.617,83" (quanto a parcela pode baixar por mês, teto de 40%), {opcoes} vira os dois horários livres da agenda ("na *quarta (28/10) às 14h30* ou na *quinta (29/10) às 9h30*") e {nome} vira o primeiro nome do lead (some se não houver).', exige: ['{comprometimento}', '{economia}', '{opcoes}'] },
+  { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (2 horas depois)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque 2 horas depois do pedido (só de segunda a sábado, das 8h às 20h). {nome} vira o primeiro nome.' },
+  { id: 'cobranca_2', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (no dia seguinte)', ajuda: 'Segunda cobrança, um dia depois. O card vai para "follow - não responde".' },
+  { id: 'cobranca_3', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (3 dias depois)', ajuda: 'Última cobrança, três dias depois do pedido. Depois dela a Lia não cobra mais.' },
   { id: 'confirmacao', grupo: 'encerramentos', titulo: 'Confirmação da reunião', ajuda: 'Enviada pelo sistema quando a reunião é marcada. {horario} vira "quinta (16/10) às 10h" e {onde} vira "por videochamada aqui no WhatsApp" ou o endereço.', exige: ['{horario}', '{onde}'] },
 ] as const
 
@@ -53,6 +57,11 @@ export const PADRAO_CODIGO: Partial<Textos> = {
   enc_revisao: CRM_MAP.sdr.textos.revisao_humana,
   enc_atendimento: CRM_MAP.sdr.textos.atendimento,
   confirmacao: 'Fechado: {horario}, {onde}. Até lá!',
+  // Texto da Dra. Patrícia (27/10/2026), com "pode baixar cerca de" no lugar de "até X%" (OAB)
+  resultado: '{nome}, após a análise, verificamos que a sua renda está comprometida em *{comprometimento}* com consignados. Com a ação de readequação de margem, a sua parcela pode baixar cerca de *{economia}* por mês. O que acha de agendarmos uma reunião com o advogado {opcoes}?',
+  cobranca_1: 'Oi, {nome}! Ainda não recebi o seu contracheque. Assim que você mandar uma foto ou PDF, eu faço a análise gratuita na hora.',
+  cobranca_2: 'Oi, {nome}! Você ainda não enviou o seu contracheque. Estamos aguardando para fazer a sua análise gratuita.',
+  cobranca_3: 'Oi, {nome}! Vou deixar a sua análise em aberto por aqui. Quando quiser, é só mandar uma foto ou PDF do contracheque que eu analiso na hora.',
 }
 
 const BLOCO = /<!-- base:([a-z_]+) -->(\n?)([\s\S]*?)(\n?)<!-- \/base -->/g
@@ -108,6 +117,31 @@ export function mesclar(padrao: Textos, ...camadas: Array<Partial<Record<string,
   return out
 }
 
+/** Primeiro nome do lead, se o nome do card parecer nome de gente ("Lead #123", telefone e vazio não). */
+export function primeiroNome(nome: string): string {
+  const p = String(nome || '').trim().split(/\s+/)[0] || ''
+  if (!/^[A-Za-zÀ-ÿ]{2,}$/.test(p) || /^lead$/i.test(p)) return ''
+  return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()
+}
+
+/** Troca {nome}; sem nome, tira o {nome} e a vírgula junto ("Oi, {nome}!" vira "Oi!"). */
+export function comNome(texto: string, nome: string): string {
+  if (nome) return texto.split('{nome}').join(nome)
+  const t = texto.replace(/^\{nome\},?\s*/, '').replace(/,?\s*\{nome\}/g, '')
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+
+/** Resultado do contracheque qualificado, com os números da análise e os dois horários. */
+export function resultadoQualificado(textos: Partial<Textos>, nome: string, comprometimento: string, economia: string, opcoes: string): string {
+  return comNome((textos.resultado ?? PADRAO_CODIGO.resultado!).replace('{comprometimento}', comprometimento).replace('{economia}', economia).replace('{opcoes}', opcoes), nome)
+}
+
+/** Cobrança do contracheque (1, 2 ou 3). */
+export function cobranca(textos: Partial<Textos>, n: 1 | 2 | 3, nome: string): string {
+  const id = `cobranca_${n}` as const
+  return comNome(textos[id] ?? PADRAO_CODIGO[id]!, nome)
+}
+
 /** Confirmação da reunião com o horário e o lugar. */
 export function confirmacao(textos: Partial<Textos>, horario: string, onde: string): string {
   return (textos.confirmacao ?? PADRAO_CODIGO.confirmacao!).replace('{horario}', horario).replace('{onde}', onde)
@@ -139,7 +173,8 @@ export function validarTexto(id: string, texto: string): string[] {
   for (const x of (extra ? [] : meta(id as ItemId).exige || [])) if (t.split(x).length - 1 !== 1) out.push(`O texto precisa ter ${x} uma vez.`)
   if (id.startsWith('enc_') || id === 'confirmacao') if (/\?/.test(t)) out.push('Mensagem de encerramento não pode ter pergunta: depois dela quem responde é a equipe.')
   if (/fico [àa] disposi|espero ter ajudado/i.test(t)) out.push('O texto tem frase de robô ("fico à disposição", "espero ter ajudado").')
-  const violacoes: Violation[] = checkReply(t).filter(v => v.regra !== 'mais de uma pergunta' && v.regra !== 'vazio')
+  // as variáveis ({nome}, {horario}…) entram com um valor de exemplo: um texto que começa com {nome} não é JSON
+  const violacoes: Violation[] = checkReply(t.replace(/\{[a-z_]+\}/g, 'Maria')).filter(v => v.regra !== 'mais de uma pergunta' && v.regra !== 'vazio')
   for (const v of violacoes) out.push(`O texto ${PORQUE[v.regra] || v.regra}: "${v.trecho}".`)
   return out
 }

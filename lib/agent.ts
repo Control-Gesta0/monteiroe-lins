@@ -12,6 +12,7 @@ import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
 import { aplicarFinalizacao, moverSdr, type ToolCtx } from './tools'
+import { agendarCobrancas, cobrancaLigada } from './cobranca'
 import { CRM_MAP } from './crm-map'
 import { sendReply } from './transport'
 
@@ -105,7 +106,7 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
       const base = await baseVigente()
       const iLast = conversa.map(m => m.dir).lastIndexOf('in')
       const ctx: ToolCtx = {
-        port, porta, gateTag: CONFIG.gateTag, textos: base.textos,
+        port, porta, gateTag: CONFIG.gateTag, textos: base.textos, nome,
         leadText: conversa.filter(m => m.dir === 'in').map(m => m.text).join('\n'),
         lastLeadText: textoTurno,
         lastAgentText: [...conversa.slice(0, Math.max(iLast, 0))].reverse().find(m => m.dir === 'out')?.text || '',
@@ -145,12 +146,18 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       const detail = await enviar(leadId, reply.text)
       await markAnswered(leadId, target.id)
-      // Primeira resposta da IA a um lead de entrada: passa para Qualificação (fail-closed)
+      // Primeira resposta da IA a um lead de entrada (ou que voltou do "follow - não responde"): Qualificação (fail-closed)
       if (!reply.handoff && porta.id === 'superendividamento') {
         const l = await port.getLead()
-        if (l.statusId === CRM_MAP.sdr.etapas.entrada) await moverSdr(port, CRM_MAP.sdr.etapas.qualificacao)
+        if (l.statusId === CRM_MAP.sdr.etapas.entrada || l.statusId === CRM_MAP.sdr.etapas.semResposta) await moverSdr(port, CRM_MAP.sdr.etapas.qualificacao)
       }
       const fim = await getState(leadId)
+      // Ainda sem contracheque: agenda os lembretes desta resposta (os de respostas antigas deixam de valer)
+      if (!reply.handoff && porta.id === 'superendividamento' && !fim.analise && !fim.finalizado && cobrancaLigada()) {
+        const desde = Date.now()
+        await patchState(leadId, { cobrancaDesde: desde })
+        await agendarCobrancas(leadId, desde).catch(e => console.error(`[cobranca] lead ${leadId}: não agendei os lembretes`, e))
+      }
       await logExec({
         tipo: reply.handoff ? 'finalizou' : 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0,
         tools: reply.toolsUsed, guard: reply.guard, usage: reply.usage, urgente: reply.urgente || undefined,
