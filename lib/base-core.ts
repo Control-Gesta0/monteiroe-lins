@@ -18,7 +18,7 @@ import { checkReply, type Violation } from './guards'
  */
 
 export const ITENS = [
-  { id: 'escritorio', grupo: 'escritorio', titulo: 'Quem é o escritório', ajuda: 'Frase que a Lia usa para apresentar o escritório. É aqui que entra o nome e a corporação do policial que fundou o escritório.' },
+  { id: 'escritorio', grupo: 'escritorio', titulo: 'Quem é o escritório', ajuda: 'Frase que a Lia usa para apresentar o escritório: desde quando atua, especialidade e quem costuma atender.' },
   { id: 'fatos', grupo: 'escritorio', titulo: 'O que a Lia sabe do escritório', ajuda: 'Endereço, registro na OAB, análise gratuita, número de processos, o teto de 40% do decreto, prazo e formato da reunião. A Lia só afirma o que estiver aqui.' },
   { id: 'golpe', grupo: 'conversa', titulo: 'Resposta para "isso é golpe?"', ajuda: 'O que a Lia responde quando o lead desconfia.' },
   { id: 'exemplos', grupo: 'conversa', titulo: 'Exemplos do jeito de escrever', ajuda: 'Trechos de conversa boa que a Lia imita no tom. Cole aqui conversas reais do comercial (sem dados pessoais).' },

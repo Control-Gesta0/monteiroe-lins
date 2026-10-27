@@ -15,7 +15,7 @@ const NOMES = ['Sgt. Marcos Teixeira', 'Cb. Renata Alves', 'Sd. Bruno Lima', 'Te
   'Sd. Paulo Ramos', 'Sgt. Luciana Melo', 'Cb. Diego Faria', 'Sub. Ricardo Pinto', 'Sd. Aline Costa', 'Sgt. Júlio Barros']
 
 type Roteiro = Array<Omit<ExecEntry, 'at' | 'leadId' | 'nome'> & { depois: number }>
-const ABRE = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins. O escritório foi fundado por um policial e cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
+const ABRE = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório de direito bancário que atua desde a década de 90. A gente cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
 const CC = '[imagem do lead]: CONTRACHEQUE | PMERJ | 09/2026 | sim\nRUBRICA | 001 | SOLDO | P | 6.200,00\n…'
 
 const ROTEIROS: Roteiro[] = [
@@ -96,7 +96,7 @@ const live = {
 
 // Base: os textos reais, com um rascunho de exemplo
 const padrao = textosPadrao([readFileSync('prompts/nucleo.md', 'utf-8'), readFileSync('prompts/portas/superendividamento.md', 'utf-8')])
-const fundador = padrao.escritorio.replace('[NOME E CORPORAÇÃO DO FUNDADOR]', 'o Cel. Exemplo, da PMERJ,')
+const fundador = padrao.escritorio.replace('fundada na década de 90', 'fundada em 1995')
 const rascunho: Record<string, string> = { escritorio: fundador }
 const base = {
   versao: 1, publicadoEm: new Date(NOW - 3 * 86400_000).toISOString(), nota: 'Mensagem de renda abaixo mais acolhedora', rascunhoEm: new Date(NOW - 3600_000).toISOString(),
@@ -110,9 +110,9 @@ const base = {
     { versao: 0, publicadoEm: null, nota: null, mudancas: [] },
   ],
   conversa: [
-    { id: 'c1', ts: new Date(NOW - 5 * 3600_000).toISOString(), papel: 'equipe', origem: 'base', texto: 'O escritório foi fundado pelo Cel. Exemplo, da PMERJ.' },
+    { id: 'c1', ts: new Date(NOW - 5 * 3600_000).toISOString(), papel: 'equipe', origem: 'base', texto: 'O escritório foi fundado em 1995, pode colocar o ano certo.' },
     { id: 'c2', ts: new Date(NOW - 5 * 3600_000 + 9000).toISOString(), papel: 'ia', origem: 'base', destino: 'base', custoUsd: 0.0021,
-      texto: 'Troquei o nome do fundador no texto Quem é o escritório. Está no rascunho: teste e publique com o exame para valer no WhatsApp.',
+      texto: 'Troquei a década pelo ano de fundação no texto Quem é o escritório. Está no rascunho: teste e publique com o exame para valer no WhatsApp.',
       mudancas: [{ tipo: 'trocar', id: 'escritorio', titulo: 'Quem é o escritório', antes: padrao.escritorio, depois: fundador }] },
     { id: 'c3', ts: new Date(NOW - 2 * 3600_000).toISOString(), papel: 'equipe', origem: 'base', texto: 'Acrescenta que tem estacionamento rotativo na Rua da Quitanda e um pago na esquina com a Rua do Ouvidor.' },
     { id: 'c4', ts: new Date(NOW - 2 * 3600_000 + 8000).toISOString(), papel: 'ia', origem: 'base', destino: 'nova_informacao', custoUsd: 0.0019,

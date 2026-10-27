@@ -7,8 +7,8 @@ import { lerArquivo, lerLink, linksDoTexto, type Anexo, type MaterialLido } from
 import { k, redis } from './redis'
 
 /**
- * CURADOR da base: a equipe da Monteiro & Lins pede em português ("o fundador é o
- * Cel. Fulano, da PMERJ", "acrescenta que tem estacionamento na rua", ou corrige
+ * CURADOR da base: a equipe da Monteiro & Lins pede em português ("o prazo médio é
+ * de 6 meses", "acrescenta que tem estacionamento na rua", ou corrige
  * uma resposta do laboratório ou de uma conversa real) e a IA, com a chave OpenAI
  * do agente, decide o destino e escreve a mudança. A equipe nunca edita texto à mão.
  *
@@ -103,7 +103,7 @@ Quando a mensagem trouxer uma correção, preencha SEMPRE (mesmo com destino "ne
 E decida o destino da correção como em qualquer pedido. Números do caso (porcentagem comprometida, redução estimada) vêm da análise em código: se a equipe disser que a conta está errada, é "control_gestao".
 
 COMO RESPONDER À EQUIPE
-- Fale no passado do que você FEZ NA BASE, nomeando o texto ou a informação ("Troquei o nome do fundador no texto Quem é o escritório.", "Acrescentei a informação \"Estacionamento\"."). Você não muda o roteiro nem a análise: só textos e informações da base. Não fale de publicar, de exame nem de rascunho: o sistema acrescenta esse aviso.
+- Fale no passado do que você FEZ NA BASE, nomeando o texto ou a informação ("Troquei o prazo no texto O que a Lia sabe do escritório.", "Acrescentei a informação \"Estacionamento\"."). Você não muda o roteiro nem a análise: só textos e informações da base. Não fale de publicar, de exame nem de rascunho: o sistema acrescenta esse aviso.
 - Em "control_gestao" e "recusado" você não mudou nada: diga isso com clareza.
 - Se a conversa usou os textos NO AR e o que faltou já está no RASCUNHO, não crie de novo: destino "nenhum", explique que já está no rascunho e falta publicar.
 

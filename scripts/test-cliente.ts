@@ -256,9 +256,10 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   for (const f of ['nucleo.md', 'portas/superendividamento.md']) eq(`base: ${f} renderizado sem edição = arquivo sem marcadores`, bc.renderTemplate(ler(f)) === semMarcadores(ler(f)), true)
   const padroes = bc.textosPadrao([ler('nucleo.md'), ler('portas/superendividamento.md')])
   eq('base: todos os textos padrão passam nas travas', bc.ITENS.filter(i => bc.validarTexto(i.id, padroes[i.id]).length).map(i => i.id), [])
+  eq('base: nenhum texto padrão diz que o fundador é policial', Object.entries(padroes).filter(([, t]) => /fundad[oa] por/i.test(String(t))).map(([id]) => id), [])
   eq('base: texto de 24h do prompt = o do código', padroes.enc_atendimento, CRM_MAP.sdr.textos.atendimento)
-  const editado = bc.renderTemplate(ler('nucleo.md'), { escritorio: 'O escritório foi fundado pelo Cel. Teste, da PMERJ.' })
-  eq('base: edição troca só o bloco', [editado.includes('Cel. Teste'), editado.includes('[NOME E CORPORAÇÃO'), editado.includes('Rua da Quitanda, 19')], [true, false, true])
+  const editado = bc.renderTemplate(ler('nucleo.md'), { escritorio: 'A Monteiro & Lins atua desde 1995 em direito bancário.' })
+  eq('base: edição troca só o bloco', [editado.includes('desde 1995'), editado.includes('década de 90 e desde'), editado.includes('Rua da Quitanda, 19')], [true, false, true])
   eq('base: trava barra "vai baixar" e 30%', bc.validarTexto('fatos', 'A parcela vai baixar e o juiz limita a 30% da renda.').length, 2)
   eq('base: encerramento sem pergunta', bc.validarTexto('enc_revisao', 'A equipe confere, tudo bem?').length, 1)
   eq('base: confirmação exige {horario} e {onde}', [bc.validarTexto('confirmacao', 'Fechado!').length, bc.confirmacao({}, 'quinta (16/10) às 10h', 'presencial')], [2, 'Fechado: quinta (16/10) às 10h, presencial. Até lá!'])
@@ -266,8 +267,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
 
   // ---------- 11. Curador (sem LLM): só troca exata e o que passa nas travas ----------
   const { aplicar } = await import('../lib/curador')
-  const ap = aplicar({ mudancas: [{ tipo: 'trocar', id: 'escritorio', de: '[NOME E CORPORAÇÃO DO FUNDADOR]', para: 'o Cel. Teste, da PMERJ,' }] }, padroes, [])
-  eq('curador: troca exata do fundador', [ap.erros, ap.textos.escritorio.includes('o Cel. Teste, da PMERJ,'), ap.mudancas.length], [[], true, 1])
+  const ap = aplicar({ mudancas: [{ tipo: 'trocar', id: 'escritorio', de: 'fundada na década de 90', para: 'fundada em 1995' }] }, padroes, [])
+  eq('curador: troca exata no texto do escritório', [ap.erros, ap.textos.escritorio.includes('fundada em 1995'), ap.mudancas.length], [[], true, 1])
   eq('curador: trecho que não existe é recusado', aplicar({ mudancas: [{ tipo: 'trocar', id: 'fatos', de: 'texto que não existe', para: 'x' }] }, padroes, []).erros.length, 1)
   eq('curador: troca que promete resultado é barrada', aplicar({ mudancas: [{ tipo: 'trocar', id: 'golpe', de: 'Quer que eu te passe o registro na OAB?', para: 'A parcela vai baixar, garantido.' }] }, padroes, []).erros.length, 1)
   const nv = aplicar({ mudancas: [{ tipo: 'nova', titulo: 'Estacionamento', texto: 'Tem estacionamento rotativo na Rua da Quitanda.' }] }, padroes, [])

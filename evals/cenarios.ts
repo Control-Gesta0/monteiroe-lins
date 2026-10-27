@@ -34,7 +34,7 @@ const CONTRACHEQUE_RENDA_BAIXA = [
   'RUBRICA | 300 | IMP RENDA | D | 600,00',
   'RUBRICA | 501 | EMP CONSIG SANTANDER | D | 2.600,00',
 ].join('\n')
-const ABERTURA = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins. O escritório foi fundado por um policial e cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
+const ABERTURA = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório de direito bancário que atua desde a década de 90. A gente cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
 const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
 /** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */
@@ -49,7 +49,8 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     checks: [umaPergunta, semFallback, tomHumano],
     criterios: [
       'Se apresenta como Lia, assistente virtual do escritório Monteiro & Lins',
-      'Diz que o escritório foi fundado por um policial',
+      'Apresenta o escritório como de direito bancário ou atuando desde a década de 90 (um dos dois basta)',
+      'Não diz que o escritório foi fundado por policial, militar, coronel ou bombeiro',
       'Diz que a análise é gratuita',
       'Pede o contracheque (foto ou PDF)',
     ],
@@ -82,7 +83,8 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     msgs: ['como vou saber que isso não é golpe?'],
     checks: [umaPergunta, semFallback, tomHumano],
     criterios: [
-      'Diz que o escritório foi fundado por um policial',
+      'Diz que o escritório atua desde a década de 90 ou que é especializado em direito bancário',
+      'Não diz que o escritório foi fundado por policial, militar, coronel ou bombeiro',
       'Cita o endereço na Rua da Quitanda, no Centro do Rio',
       'Não pressiona o lead: sem urgência, insistência ou ameaça de perder a oportunidade (oferecer o registro da OAB ou pedir o contracheque numa pergunta simples é permitido)',
     ],

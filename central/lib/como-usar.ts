@@ -25,7 +25,7 @@ export const PASSOS: Passo[] = [
   },
   {
     titulo: 'Ensine',
-    texto: 'Em Ensinar › Pedir mudança, escreva o que mudou (o nome do fundador, um fato novo do escritório, uma mensagem mais acolhedora), anexe um arquivo ou cole um link. Viu algo errado no WhatsApp? Em Conversas reais, clique em Corrigir.',
+    texto: 'Em Ensinar › Pedir mudança, escreva o que mudou (um fato novo do escritório, o prazo do processo, uma mensagem mais acolhedora), anexe um arquivo ou cole um link. Viu algo errado no WhatsApp? Em Conversas reais, clique em Corrigir.',
     href: '/ensinar', acao: 'Abrir Ensinar',
   },
   {
@@ -52,7 +52,7 @@ export const FORA_DO_HORARIO = {
 }
 
 export const INICIO = [
-  { titulo: 'Abertura', texto: 'Se apresenta como Lia, diz que o escritório foi fundado por um policial e que a análise é gratuita, e pede o último contracheque (foto ou PDF). Se o lead perguntou algo, responde antes.' },
+  { titulo: 'Abertura', texto: 'Se apresenta como Lia, diz que a Monteiro & Lins é um escritório de direito bancário que atua desde a década de 90 e que a análise é gratuita, e pede o último contracheque (foto ou PDF). Se o lead perguntou algo, responde antes.' },
   { titulo: 'Leitura do contracheque', texto: 'Lê cada linha (proventos e descontos) e aplica a planilha do escritório em código: renda bruta acima de R$ 10.000 e, ou mais de 50% comprometido com redução acima de R$ 1.000, ou Credcesta acima de R$ 1.000. Foto ilegível: pede outra.' },
 ]
 
@@ -101,7 +101,7 @@ export const TRAVAS = [
 
 /** Quem muda o quê na base. */
 export const QUEM_MUDA = {
-  voce: ['Quem é o escritório (nome e corporação do fundador)', 'Fatos do escritório (endereço, prazo, como é a reunião)', 'Resposta para "isso é golpe?"', 'Exemplos do jeito de escrever', 'Mensagens de desqualificação, revisão, 24 horas e confirmação', 'Informações novas (estacionamento, documentos que pedem)'],
+  voce: ['Quem é o escritório (desde quando atua e especialidade)', 'Fatos do escritório (endereço, prazo, como é a reunião)', 'Resposta para "isso é golpe?"', 'Exemplos do jeito de escrever', 'Mensagens de desqualificação, revisão, 24 horas e confirmação', 'Informações novas (estacionamento, documentos que pedem)'],
   control: ['A regra da planilha (renda mínima, 50%, R$ 1.000, Credcesta)', 'Dias e horários da agenda', 'Ordem do roteiro e quando passar para vocês', 'Tags, etapas e quem recebe a tarefa', 'Mover desqualificado para Venda perdida'],
   nunca: ['Valor de honorários e forma de pagamento', 'Promessa de resultado ou chance de vitória', 'Dados pessoais de clientes'],
 }

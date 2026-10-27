@@ -268,7 +268,7 @@ function Item({ item, post, bloqueado, destacado }: { item: BaseItem; post: Post
 }
 
 const EXEMPLOS = [
-  'O escritório foi fundado pelo [nome e patente], da [corporação]',
+  'Acrescenta que o escritório também atende empresas com dívida bancária',
   'Acrescenta que tem estacionamento rotativo na Rua da Quitanda',
   'A mensagem de renda abaixo do mínimo está fria, deixa mais acolhedora',
   'O prazo médio até a decisão do juiz é de 6 a 7 meses',
@@ -424,7 +424,7 @@ function Conversa({ dados, post, bloqueado }: { dados: (BaseEstado & { demo?: bo
             <input ref={seletor} type="file" multiple hidden accept={ACEITOS.map(e => `.${e}`).join(',')} onChange={e => adicionar(e.target.files)} />
             <button type="button" onClick={() => seletor.current?.click()} disabled={bloqueado || enviando || arquivos.length >= 3} aria-label="Anexar arquivo" title="Anexar arquivo (PDF, Word, texto, CSV ou imagem)"
               className="px-3 rounded-[10px] border border-line-soft text-body-mid hover:text-ink hover:border-cyan/25 disabled:opacity-30"><Paperclip size={16} /></button>
-            <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} disabled={bloqueado} placeholder={arquivos.length ? 'O que a IA deve fazer com o material? (opcional)' : 'Ex.: o fundador é o Cel. Fulano, da PMERJ · acrescenta que tem estacionamento perto do escritório'}
+            <textarea value={texto} onChange={e => setTexto(e.target.value)} rows={2} disabled={bloqueado} placeholder={arquivos.length ? 'O que a IA deve fazer com o material? (opcional)' : 'Ex.: acrescenta que tem estacionamento perto do escritório · a mensagem de renda abaixo está fria'}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar() } }}
               className="campo flex-1 min-w-0 rounded-[10px] px-3.5 py-2.5 text-[13px] resize-none" />
             <button type="button" onClick={() => enviar()} disabled={(!texto.trim() && !arquivos.length) || enviando || bloqueado} aria-label="Enviar pedido"
