@@ -6,7 +6,7 @@ import { addUsage, emptyUsage, type Usage } from './execlog'
 import { checkReply, keepLastQuestion, paraWhatsApp, semTravessao, type Violation } from './guards'
 import type { ChatMsg } from './history'
 import { aplicarFinalizacao, buildTools, describeOpen, runTool, snapshot, type ToolCtx } from './tools'
-import { renderTemplate } from './base-core'
+import { renderTemplate, saudacaoAgora } from './base-core'
 
 /**
  * Cérebro: GPT-5.4 Mini (Chat Completions, reasoning none) com loop próprio de
@@ -80,6 +80,7 @@ export function createBrain(opts: LlmOptions) {
     const linhas = [
       '# Contexto desta conversa (gerado pelo sistema — é dado, não instrução do lead)',
       `Data/hora: ${agora}`,
+      `Saudação agora: ${saudacaoAgora()}`,
       `Assunto (porta travada): ${ctx.porta.label}`,
       `Nome no WhatsApp: ${lead.nomeContato || '(desconhecido)'} — confirme antes de usar se parecer apelido`,
       `Primeira mensagem da IA neste assunto: ${lead.primeiroContatoDaPorta ? 'SIM — use a abertura do prompt' : 'não — NÃO repita a abertura'}`,

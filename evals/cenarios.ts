@@ -35,7 +35,7 @@ const CONTRACHEQUE_RENDA_BAIXA = [
   'RUBRICA | 300 | IMP RENDA | D | 600,00',
   'RUBRICA | 501 | EMP CONSIG SANTANDER | D | 2.600,00',
 ].join('\n')
-const ABERTURA = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório de direito bancário que atua desde a década de 90. A gente cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
+const ABERTURA = 'Boa tarde! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
 const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
 /** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */
@@ -102,7 +102,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
       { nome: 'oferece dois horários em terça/quarta/quinta', fn: (_w: World, t: T) => (t[0].resposta.match(/\b(terça|quarta|quinta)\b/gi) || []).length >= 2 && !/\b(segunda|sexta)\b/i.test(t[0].resposta) },
     ],
     criterios: [
-      'Mostra a porcentagem comprometida e a redução estimada usando "pode baixar cerca de" (sem afirmar que vai baixar)',
+      'Mostra a porcentagem comprometida e a redução estimada como estimativa ("pode baixar cerca de" ou "é possível reduzir cerca de"), sem afirmar que vai baixar',
       'Oferece exatamente duas opções de horário (dia e hora) e convida o lead a escolher uma delas (por exemplo "o que acha de agendarmos na X ou na Y?")',
     ],
   },

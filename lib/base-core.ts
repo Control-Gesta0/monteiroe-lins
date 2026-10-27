@@ -20,6 +20,7 @@ import { checkReply, type Violation } from './guards'
 export const ITENS = [
   { id: 'escritorio', grupo: 'escritorio', titulo: 'Quem é o escritório', ajuda: 'Frase que a Lia usa para apresentar o escritório: desde quando atua, especialidade e quem costuma atender.' },
   { id: 'fatos', grupo: 'escritorio', titulo: 'O que a Lia sabe do escritório', ajuda: 'Endereço, registro na OAB, análise gratuita, número de processos, o teto de 40% do decreto, prazo e formato da reunião. A Lia só afirma o que estiver aqui.' },
+  { id: 'abertura', grupo: 'conversa', titulo: 'Primeira mensagem (abertura)', ajuda: 'Modelo da primeira mensagem da Lia. {saudacao} vira Bom dia, Boa tarde ou Boa noite pelo horário de Brasília e {nome} o primeiro nome do lead (some se não houver). Se o lead já perguntou algo, ela responde antes em uma frase.' },
   { id: 'golpe', grupo: 'conversa', titulo: 'Resposta para "isso é golpe?"', ajuda: 'O que a Lia responde quando o lead desconfia.' },
   { id: 'exemplos', grupo: 'conversa', titulo: 'Exemplos do jeito de escrever', ajuda: 'Trechos de conversa boa que a Lia imita no tom. Cole aqui conversas reais do comercial (sem dados pessoais).' },
   { id: 'enc_renda_abaixo', grupo: 'encerramentos', titulo: 'Renda abaixo do mínimo', ajuda: 'Enviada pelo sistema quando a renda bruta do contracheque não passa de R$ 10.000. Indica a Defensoria.' },
@@ -27,7 +28,7 @@ export const ITENS = [
   { id: 'enc_revisao', grupo: 'encerramentos', titulo: 'Contracheque para a equipe conferir', ajuda: 'Enviada quando o contracheque tem descontos que o sistema não reconheceu. Promete resposta em até 24 horas.' },
   { id: 'enc_atendimento', grupo: 'encerramentos', titulo: 'Passagem para a equipe (24 horas)', ajuda: 'Quando o lead já é cliente, pergunta do processo ou pede uma pessoa. Promete resposta em até 24 horas.' },
   { id: 'resultado', grupo: 'encerramentos', titulo: 'Resultado da análise (qualificado)', ajuda: 'Enviada pelo sistema quando o contracheque qualifica. {comprometimento} vira "59,6%", {economia} vira "R$ 1.617,83" (quanto a parcela pode baixar por mês, teto de 40%), {opcoes} vira os dois horários livres da agenda ("na *quarta (28/10) às 14h30* ou na *quinta (29/10) às 9h30*") e {nome} vira o primeiro nome do lead (some se não houver).', exige: ['{comprometimento}', '{economia}', '{opcoes}'] },
-  { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (2 horas depois)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque 2 horas depois do pedido (só de segunda a sábado, das 8h às 20h). {nome} vira o primeiro nome.' },
+  { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (2 horas depois)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque 2 horas depois do pedido (só de segunda a sábado, das 8h às 20h). {saudacao} vira Bom dia, Boa tarde ou Boa noite e {nome} o primeiro nome.' },
   { id: 'cobranca_2', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (no dia seguinte)', ajuda: 'Segunda cobrança, um dia depois. O card vai para "follow - não responde".' },
   { id: 'cobranca_3', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (3 dias depois)', ajuda: 'Última cobrança, três dias depois do pedido. Depois dela a Lia não cobra mais.' },
   { id: 'confirmacao', grupo: 'encerramentos', titulo: 'Confirmação da reunião', ajuda: 'Enviada pelo sistema quando a reunião é marcada. {horario} vira "quinta (16/10) às 10h" e {onde} vira "por videochamada aqui no WhatsApp" ou o endereço.', exige: ['{horario}', '{onde}'] },
@@ -57,11 +58,11 @@ export const PADRAO_CODIGO: Partial<Textos> = {
   enc_revisao: CRM_MAP.sdr.textos.revisao_humana,
   enc_atendimento: CRM_MAP.sdr.textos.atendimento,
   confirmacao: 'Fechado: {horario}, {onde}. Até lá!',
-  // Texto da Dra. Patrícia (27/10/2026), com "pode baixar cerca de" no lugar de "até X%" (OAB)
-  resultado: '{nome}, após a análise, verificamos que a sua renda está comprometida em *{comprometimento}* com consignados. Com a ação de readequação de margem, a sua parcela pode baixar cerca de *{economia}* por mês. O que acha de agendarmos uma reunião com o advogado {opcoes}?',
-  cobranca_1: 'Oi, {nome}! Ainda não recebi o seu contracheque. Assim que você mandar uma foto ou PDF, eu faço a análise gratuita na hora.',
-  cobranca_2: 'Oi, {nome}! Você ainda não enviou o seu contracheque. Estamos aguardando para fazer a sua análise gratuita.',
-  cobranca_3: 'Oi, {nome}! Vou deixar a sua análise em aberto por aqui. Quando quiser, é só mandar uma foto ou PDF do contracheque que eu analiso na hora.',
+  // Textos da Dra. Patrícia (27/10/2026). "Conseguimos reduzir em até" virou "é possível reduzir cerca de" (OAB: sem promessa de resultado)
+  resultado: '{nome}, após a análise, verificamos que a sua renda está comprometida em *{comprometimento}* referente aos empréstimos consignados. Com a ação de readequação de margem, é possível reduzir cerca de *{economia}* por mês para você. O que acha de agendarmos uma reunião com um advogado especialista {opcoes}?',
+  cobranca_1: '{saudacao}, {nome}! Acho que você esqueceu de mandar o contracheque. Estamos aguardando para enviar a sua análise, que é gratuita.',
+  cobranca_2: '{saudacao}, {nome}! Ainda estamos aguardando o seu contracheque para enviar a sua análise gratuita. Pode mandar a foto da página inteira por aqui mesmo.',
+  cobranca_3: '{saudacao}, {nome}! Vou deixar a sua análise em aberto por aqui. Quando quiser, é só mandar a foto do contracheque que eu envio a sua análise.',
 }
 
 const BLOCO = /<!-- base:([a-z_]+) -->(\n?)([\s\S]*?)(\n?)<!-- \/base -->/g
@@ -124,8 +125,15 @@ export function primeiroNome(nome: string): string {
   return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()
 }
 
-/** Troca {nome}; sem nome, tira o {nome} e a vírgula junto ("Oi, {nome}!" vira "Oi!"). */
-export function comNome(texto: string, nome: string): string {
+/** Bom dia (5h às 11h), Boa tarde (12h às 17h) ou Boa noite, pelo horário de Brasília. */
+export function saudacaoAgora(ms = Date.now()): string {
+  const h = Number(new Date(ms).toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hour12: false })) % 24
+  return h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 18 ? 'Boa tarde' : 'Boa noite'
+}
+
+/** Troca {nome} (e {saudacao}); sem nome, tira o {nome} e a vírgula junto ("Oi, {nome}!" vira "Oi!"). */
+export function comNome(texto: string, nome: string, ms = Date.now()): string {
+  texto = texto.split('{saudacao}').join(saudacaoAgora(ms))
   if (nome) return texto.split('{nome}').join(nome)
   const t = texto.replace(/^\{nome\},?\s*/, '').replace(/,?\s*\{nome\}/g, '')
   return t.charAt(0).toUpperCase() + t.slice(1)
@@ -137,9 +145,9 @@ export function resultadoQualificado(textos: Partial<Textos>, nome: string, comp
 }
 
 /** Cobrança do contracheque (1, 2 ou 3). */
-export function cobranca(textos: Partial<Textos>, n: 1 | 2 | 3, nome: string): string {
+export function cobranca(textos: Partial<Textos>, n: 1 | 2 | 3, nome: string, ms = Date.now()): string {
   const id = `cobranca_${n}` as const
-  return comNome(textos[id] ?? PADRAO_CODIGO[id]!, nome)
+  return comNome(textos[id] ?? PADRAO_CODIGO[id]!, nome, ms)
 }
 
 /** Confirmação da reunião com o horário e o lugar. */

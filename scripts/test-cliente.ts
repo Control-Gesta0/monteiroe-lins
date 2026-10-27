@@ -355,9 +355,11 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   // ---------- 14. Resultado aprovado e cobrança do contracheque ----------
   eq('nome: primeiro nome de gente; "Lead #123" e telefone não', [bc.primeiroNome('EDUARDO do Vale'), bc.primeiroNome('Lead #21024021'), bc.primeiroNome('+55 21 99999'), bc.primeiroNome('')], ['Eduardo', '', '', ''])
   eq('resultado: texto da Dra. Patrícia com os números e os horários', bc.resultadoQualificado({}, 'Eduardo', '59,6%', 'R$ 1.617,83', 'na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*'),
-    'Eduardo, após a análise, verificamos que a sua renda está comprometida em *59,6%* com consignados. Com a ação de readequação de margem, a sua parcela pode baixar cerca de *R$ 1.617,83* por mês. O que acha de agendarmos uma reunião com o advogado na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*?')
+    'Eduardo, após a análise, verificamos que a sua renda está comprometida em *59,6%* referente aos empréstimos consignados. Com a ação de readequação de margem, é possível reduzir cerca de *R$ 1.617,83* por mês para você. O que acha de agendarmos uma reunião com um advogado especialista na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*?')
   eq('resultado sem nome começa com maiúscula', bc.resultadoQualificado({}, '', '59,6%', 'R$ 1', 'x').slice(0, 20), 'Após a análise, veri')
-  eq('cobrança: "Oi, {nome}!" sem nome vira "Oi!"', [bc.cobranca({}, 2, 'Ana').slice(0, 9), bc.cobranca({}, 2, '').slice(0, 9)], ['Oi, Ana! ', 'Oi! Você '])
+  const as19 = Date.parse('2026-10-27T19:30:00-03:00'), as9 = Date.parse('2026-10-28T09:00:00-03:00'), as14 = Date.parse('2026-10-28T14:00:00-03:00')
+  eq('saudação pelo horário de Brasília', [bc.saudacaoAgora(as9), bc.saudacaoAgora(as14), bc.saudacaoAgora(as19)], ['Bom dia', 'Boa tarde', 'Boa noite'])
+  eq('cobrança: saudação e nome; sem nome tira o nome e a vírgula', [bc.cobranca({}, 1, 'Ana', as19).slice(0, 24), bc.cobranca({}, 1, '', as9).slice(0, 20)], ['Boa noite, Ana! Acho que', 'Bom dia! Acho que vo'])
   eq('resultado: trava exige as três variáveis', bc.validarTexto('resultado', 'Sua renda está comprometida.').length, 3)
   const { emHorarioComercial, chaveCobranca } = await import('../lib/cobranca')
   const brt = (iso: string) => Date.parse(iso + '-03:00')
