@@ -9,6 +9,7 @@ import { CONFIG } from './config'
  * Cada lembrete é uma mensagem atrasada no QStash que chama /api/cobranca na hora certa.
  * Lá o app confere se AINDA falta (o lead pode ter mandado, a equipe pode ter assumido,
  * pode ter vindo um pedido mais novo): a fila não precisa ser cancelada, só ignorada.
+ * O card não muda de etapa (opção A, 27/10/2026): "follow - não responde" dispara o robô do Kommo.
  */
 
 export const ATRASOS_H = [2, 24, 72] as const

@@ -4,13 +4,10 @@ import { baseVigente } from '../lib/base'
 import { cobranca, primeiroNome } from '../lib/base-core'
 import { chaveCobranca } from '../lib/cobranca'
 import { CONFIG } from '../lib/config'
-import { CRM_MAP } from '../lib/crm-map'
 import { logExec } from '../lib/execlog'
 import { appendMessage, getHistory, humanSpokeRecently } from '../lib/history'
 import { getLead, leadTags } from '../lib/kommo'
-import { kommoPort } from '../lib/port'
 import { getState } from '../lib/state'
-import { moverSdr } from '../lib/tools'
 import { sendReply } from '../lib/transport'
 
 /**
@@ -49,8 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const detalhe = await sendReply(leadId, texto)
     await appendMessage(leadId, { id: crypto.randomUUID(), dir: 'out', text: texto, ts: Date.now() })
-    // Segunda cobrança: o card vai para "follow - não responde" (volta para Qualificação quando o lead responder)
-    if (n === 2) await moverSdr(kommoPort(leadId), CRM_MAP.sdr.etapas.semResposta).catch(() => false)
+    // O card NÃO muda de etapa: a etapa "follow - não responde" dispara o robô de follow-up do Kommo (cobrança em dobro)
     await logExec({ tipo: 'menu', leadId, nome: lead.name || '', porta: 'cobranca', detalhe: `cobrança ${n} do contracheque · ${detalhe}`, respostaIA: texto })
     return res.status(200).json({ ok: true, enviado: true, n })
   } catch (e) {
