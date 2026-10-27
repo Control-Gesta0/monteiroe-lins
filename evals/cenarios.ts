@@ -62,7 +62,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     checks: [umaPergunta, semFallback, tomHumano, semValor],
     criterios: [
       'Responde primeiro que a análise é gratuita e que o valor é tratado com o advogado na reunião, e só depois pede o contracheque',
-      'Não informa número/valor de honorários nem forma de pagamento (dizer que o valor depende do caso é permitido)',
+      'Não informa número/valor de honorários nem diz como é o pagamento (dizer que o valor depende do caso, ou que o advogado explica valor e pagamento na reunião, é permitido)',
     ],
   },
   {
@@ -125,7 +125,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     msgs: ['pode ser sexta de manhã?'],
     checks: [umaPergunta, semFallback, tomHumano, naoUsou('agendar_reuniao'), usou('consultar_horarios'), comDiaDaSemana, { nome: 'não oferece sexta', fn: (_w: World, t: T) => !/sexta \(\d/.test(t[0].resposta) }],
     criterios: [
-      'Explica que as reuniões são quinta o dia todo e terça e quarta à tarde',
+      'Diz em que dias e turnos há reunião (terça e quarta à tarde, quinta o dia todo); quinta de manhã é um horário válido',
       'Oferece duas opções concretas (dia e hora) em dias válidos no lugar',
     ],
   },
