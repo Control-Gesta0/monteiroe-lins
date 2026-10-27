@@ -290,6 +290,9 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('saída: template de boas-vindas com nome é automático', automatica('Oi, João! Aqui é a Lia, assistente virtual da Monteiro & Lins.'), true)
   eq('saída: mensagem do comercial é humana', automatica('Oi João, aqui é a Patrícia do escritório, recebi seu contracheque.'), false)
 
+  const { MIDIA_NAO_CARREGOU } = await import('../api/inbound')
+  eq('mídia sem arquivo (WhatsApp Lite) é reconhecida', MIDIA_NAO_CARREGOU.test('Você recebeu uma mensagem de mídia (ID da mensagem: 3EB0. Aguarde o carregamento ou a visualização da mídia no seu aplicativo móvel WhatsApp conectado.'), true)
+
   // ---------- 9. Robô de recebimento (lead sem a Lia manda o contracheque em Qualificação) ----------
   const { motivoSemAgradecimento } = await import('../lib/recebimento')
   const rec = { ...CRM_MAP.recebimento, ativo: true }

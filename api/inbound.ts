@@ -37,6 +37,9 @@ function safeEq(a: string, b: string): boolean {
   return crypto.timingSafeEqual(crypto.createHash('sha256').update(a).digest(), crypto.createHash('sha256').update(b).digest())
 }
 
+/** Aviso que o WhatsApp Lite do Kommo manda no lugar da mídia que o celular conectado ainda não baixou. */
+export const MIDIA_NAO_CARREGOU = /Você recebeu uma mensagem de mídia|You received a media message/i
+
 export interface InboundMsg { id: string; leadId: number; text: string; attachType: string; attachLink: string; direction: string }
 
 function pick(body: Record<string, unknown>, flat: string, nested: Array<string | number>): string {
@@ -90,6 +93,11 @@ async function ingest(msgs: InboundMsg[], webhookId: string): Promise<void> {
         text = !l || liaAtende(l) ? await mediaToText(kind, m.attachLink, text) : [text, `[${kind === 'audio' ? 'áudio' : kind === 'image' ? 'imagem' : 'documento'} recebido]`].filter(Boolean).join('\n')
       }
       if (!text) continue
+      // WhatsApp Lite: arquivo que o celular conectado ainda não baixou chega só com este aviso, sem o anexo
+      if (!outgoing && MIDIA_NAO_CARREGOU.test(text)) {
+        console.warn(`[inbound] lead ${m.leadId}: mídia chegou sem o arquivo (aviso do WhatsApp Lite)`)
+        text = '[o lead mandou uma foto ou arquivo, mas ele não chegou até você (falha do WhatsApp, não do lead): agradeça e peça para mandar de novo, de preferência como documento ou PDF]'
+      }
 
       // Eco do que o NOSSO bot enviou: já está no histórico
       if (await isEchoOfSent(m.leadId, text)) continue
