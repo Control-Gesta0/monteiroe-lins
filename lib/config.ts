@@ -61,6 +61,8 @@ export const CONFIG = {
   cobrancaContracheque: (process.env.COBRANCA_CONTRACHEQUE || '1') !== '0',
   qstashUrl: (process.env.QSTASH_URL || 'https://qstash.upstash.io').replace(/\/+$/, ''),
   qstashToken: process.env.QSTASH_TOKEN || '',
+  /** > 0: nos leads de TEST_LEAD_IDS os lembretes saem a cada N minutos (para testar sem esperar) */
+  cobrancaTesteMinutos: Number(process.env.COBRANCA_TESTE_MINUTOS || 0),
 
   // Painel de gestão (/api/painel): a chave do escritório (só vê o painel)
   painelSecret: process.env.PAINEL_SECRET || '',

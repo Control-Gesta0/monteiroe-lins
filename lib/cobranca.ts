@@ -38,9 +38,11 @@ export const cobrancaLigada = () => Boolean(CONFIG.cobrancaContracheque && CONFI
 export async function agendarCobrancas(leadId: number, desde: number): Promise<void> {
   if (!cobrancaLigada()) return
   const destino = `${CONFIG.selfUrl}/api/cobranca`
+  // Modo de teste (COBRANCA_TESTE_MINUTOS): só nos leads de teste, lembretes a cada N minutos, a qualquer hora
+  const teste = CONFIG.cobrancaTesteMinutos > 0 && CONFIG.testLeadIds.includes(leadId)
   for (let i = 0; i < ATRASOS_H.length; i++) {
     const n = i + 1
-    const quando = emHorarioComercial(desde + ATRASOS_H[i] * 3600_000)
+    const quando = teste ? desde + n * CONFIG.cobrancaTesteMinutos * 60_000 : emHorarioComercial(desde + ATRASOS_H[i] * 3600_000)
     const res = await fetch(`${CONFIG.qstashUrl}/v2/publish/${destino}`, {
       method: 'POST',
       headers: {
