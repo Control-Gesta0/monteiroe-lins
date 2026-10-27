@@ -4,6 +4,10 @@ function required(name: string): string {
   return v
 }
 
+function json<T>(v: string | undefined, padrao: T): T {
+  try { return v ? (JSON.parse(v) as T) : padrao } catch { return padrao }
+}
+
 const list = (v: string | undefined) => (v || '').split(',').map(x => x.trim()).filter(Boolean)
 
 /**
@@ -45,4 +49,14 @@ export const CONFIG = {
   // Central v5: segredo próprio da Central (sem ele, vale o WEBHOOK_SECRET) e câmbio do custo
   centralSecret: process.env.CENTRAL_SECRET || '',
   usdBrl: Number(process.env.COST_USD_BRL || 5.5),
+
+  // Stevo (WhatsApp pela Stevo/Evolution Go). CANAL_LIA=stevo: a Lia ouve o webhook da Stevo
+  // (/api/canal-hint) e ignora o add_message do Kommo; kommo (padrão): como antes (Salesbot).
+  canalLia: (process.env.CANAL_LIA || 'kommo').toLowerCase() === 'stevo' ? 'stevo' as const : 'kommo' as const,
+  stevoInstances: json<Record<string, { url?: string; apikey?: string }>>(process.env.STEVO_INSTANCES, {}),
+  /** Card novo no número da Lia já ganha a tag de gate (fim da rampagem). Desligado = só quem tem a tag. */
+  stevoTagLia: ['1', 'true', 'sim'].includes((process.env.STEVO_TAG_LIA || '').toLowerCase()),
+
+  // Painel de gestão (/api/painel): a chave do escritório (só vê o painel)
+  painelSecret: process.env.PAINEL_SECRET || '',
 }

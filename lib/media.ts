@@ -30,8 +30,12 @@ async function transcribe(url: string): Promise<string | null> {
   const file = await download(url)
   if (!file) return null
   const ext = (url.split('?')[0].split('.').pop() || 'ogg').slice(0, 5)
+  return transcribeBytes(file.data, ext)
+}
+
+async function transcribeBytes(data: ArrayBuffer, ext: string): Promise<string | null> {
   const r = await openai.audio.transcriptions.create({
-    file: await toFile(Buffer.from(file.data), `audio.${ext}`),
+    file: await toFile(Buffer.from(data), `audio.${ext}`),
     model: CONFIG.sttModel,
     language: 'pt',
   })
@@ -42,10 +46,14 @@ async function describe(url: string, kind: 'image' | 'document'): Promise<string
   const file = await download(url)
   if (!file) return null
   const isPdf = kind === 'document' || /pdf/i.test(file.type) || /\.pdf($|\?)/i.test(url)
-  const b64 = Buffer.from(file.data).toString('base64')
+  return describeBytes(file.data, file.type, isPdf)
+}
+
+async function describeBytes(data: ArrayBuffer, type: string, isPdf: boolean): Promise<string | null> {
+  const b64 = Buffer.from(data).toString('base64')
   const content: OpenAI.Chat.ChatCompletionContentPart[] = isPdf
     ? [{ type: 'file', file: { filename: 'documento.pdf', file_data: `data:application/pdf;base64,${b64}` } }]
-    : [{ type: 'image_url', image_url: { url: `data:${file.type || 'image/jpeg'};base64,${b64}` } }]
+    : [{ type: 'image_url', image_url: { url: `data:${type || 'image/jpeg'};base64,${b64}` } }]
   const r = await openai.chat.completions.create({
     model: CONFIG.visionModel,
     max_completion_tokens: CRM_MAP.midia.maxTokens ?? 400,
@@ -72,6 +80,27 @@ export async function mediaToText(kind: MediaKind, url: string, caption: string)
     return caption ? `${caption}\n${base}` : base
   } catch (e) {
     console.error(`[media] falha (${kind}):`, e)
+    return `[${label} recebido, mas não consegui abrir]`
+  }
+}
+
+/**
+ * Mídia que chegou pela Stevo (bytes já baixados e decifrados pela API dela).
+ * Mesmo texto de histórico do caminho do Kommo.
+ */
+export async function bytesToText(kind: MediaKind, bytes: Buffer, mime: string, caption: string): Promise<string> {
+  const label = kind === 'audio' ? 'áudio' : kind === 'image' ? 'imagem' : 'documento'
+  try {
+    const data = new Uint8Array(bytes).buffer
+    const isPdf = /pdf/i.test(mime)
+    const text = !bytes.byteLength || bytes.byteLength > MAX_BYTES ? null
+      : kind === 'audio' ? await transcribeBytes(data, (mime.split('/')[1] || 'ogg').replace(/[^a-z0-9]/g, '').slice(0, 5) || 'ogg')
+      : kind === 'document' && !isPdf ? null
+      : await describeBytes(data, mime, isPdf)
+    const base = text ? `[${label} do lead]: ${text}` : `[${label} recebido, mas não consegui abrir]`
+    return caption ? `${caption}\n${base}` : base
+  } catch (e) {
+    console.error(`[media] falha (${kind}, Stevo):`, e)
     return `[${label} recebido, mas não consegui abrir]`
   }
 }

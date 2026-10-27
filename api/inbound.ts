@@ -43,6 +43,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   } catch { /* diagnóstico nunca derruba o webhook */ }
 
+  // A Lia ouve a Stevo (CANAL_LIA=stevo): o add_message do Kommo (a integração da Stevo também
+  // escreve no chat do card) responderia em dobro. Só o diagnóstico acima continua.
+  if (CONFIG.canalLia === 'stevo') return res.status(200).json({ ok: true, ignorado: 'CANAL_LIA=stevo' })
+
   const parsed = parseKommoWebhook(req.body)
   if (!parsed) return res.status(200).json({ ok: false, reason: 'sem message[add]' })
   if (parsed.accountId && parsed.accountId !== CONFIG.kommoAccountId) return res.status(200).json({ ok: false, reason: 'outra conta' })

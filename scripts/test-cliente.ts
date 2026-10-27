@@ -308,5 +308,29 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('recebimento: atendimento humano não', motivo('image', { ...emQualif, tags: ['atendimento-humano'] }), 'tag "atendimento-humano"')
   eq('recebimento: desligado não manda', motivo('image', emQualif, { ...rec, ativo: false }), 'robô de recebimento desligado')
   eq('recebimento: a mensagem do robô não pausa a IA', automatica(CRM_MAP.recebimento.texto), true)
+
+  // ---------- 12. Stevo: leitura do webhook e chave por número ----------
+  const { lerEvento, chaveWebhook } = await import('../lib/stevo')
+  const { CANAIS } = await import('../lib/canais')
+  const ev = (data: Record<string, unknown>, event = 'Message') => ({ event, instanceToken: 'tok', serverUrl: 'https://sm-x.stevo.chat', data })
+  const info = (x: Record<string, unknown> = {}) => ({ Chat: '5521999998888@s.whatsapp.net', ID: 'ABC', PushName: 'Maria', Timestamp: '2026-10-27T15:00:00Z', IsFromMe: false, ...x })
+  const t1 = lerEvento('ml-sdr', ev({ Info: info(), Message: { conversation: 'oi' } }))
+  eq('stevo: texto do cliente', [t1?.fone, t1?.texto, t1?.deMim, t1?.nome], ['5521999998888', 'oi', false, 'Maria'])
+  const img = lerEvento('ml-sdr', ev({ Info: info(), Message: { imageMessage: { mimetype: 'image/jpeg', caption: 'meu contracheque', base64: 'AAAA', mediaKey: 'k' } } }))
+  eq('stevo: foto vem com o arquivo para baixar (sem base64 guardado)', [img?.midia?.tipo, img?.texto, JSON.stringify(img?.midia?.bruta).includes('base64'), JSON.stringify(img?.midia?.bruta).includes('mediaKey')], ['imagem', 'meu contracheque', false, true])
+  const pdf = lerEvento('ml-sdr', ev({ Info: info(), Message: { documentWithCaptionMessage: { message: { documentMessage: { mimetype: 'application/pdf', fileName: 'cc.pdf' } } } } }))
+  eq('stevo: PDF dentro de "documento com legenda"', [pdf?.midia?.tipo, pdf?.midia?.mime, pdf?.midia?.nomeArquivo], ['documento', 'application/pdf', 'cc.pdf'])
+  eq('stevo: grupo, status e reação são ignorados', [
+    lerEvento('ml-sdr', ev({ Info: info({ Chat: '123@g.us' }), Message: { conversation: 'oi' } })),
+    lerEvento('ml-sdr', ev({ Info: info({ Chat: 'status@broadcast' }), Message: { conversation: 'oi' } })),
+    lerEvento('ml-sdr', ev({ Info: info(), Message: { reactionMessage: { text: '👍' } } })),
+    lerEvento('ml-sdr', { event: 'Connected', data: {} }),
+  ], [null, null, null, null])
+  const lid = lerEvento('ml-sdr', ev({ Info: info({ Chat: '9999@lid', SenderAlt: '5521977776666@s.whatsapp.net' }), Message: { conversation: 'oi' } }))
+  eq('stevo: @lid usa o número alternativo', lid?.fone, '5521977776666')
+  const saida = lerEvento('ml-sdr', ev({ Info: info({ IsFromMe: true }), Message: { conversation: 'resposta' } }, 'SendMessage'))
+  eq('stevo: saída do número é "de mim" e sem nome', [saida?.deMim, saida?.nome], [true, ''])
+  eq('stevo: chave do webhook é fixa por número e diferente entre números', [chaveWebhook('ml-sdr', 'x') === chaveWebhook('ml-sdr', 'x'), chaveWebhook('ml-sdr', 'x') === chaveWebhook('ml-clientes', 'x'), chaveWebhook('ml-sdr', 'x').length], [true, false, 32])
+  eq('stevo: só o número de anúncios tem a Lia', Object.entries(CANAIS).filter(([, c]) => c.ia).map(([n]) => n), ['ml-sdr'])
   return 0
 }
