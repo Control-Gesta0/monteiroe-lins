@@ -73,7 +73,7 @@ export const NAO_CLIENTE = {
     'Oferece os dois horários livres mais próximos',
     'Se o lead pedir outro dia, explica a agenda e oferece outros dois',
     'Pergunta se prefere videochamada ou presencial (sem resposta, vale online)',
-    'Marca: campo Agendamento, tarefa "Agendamento IA" e etapa Reunião Agendada',
+    'Marca: campo Agendamento, tarefa de reunião (Meeting) e etapa Reunião Agendada',
     'Manda a confirmação e sai da conversa',
   ],
   motivo: 'agendou',

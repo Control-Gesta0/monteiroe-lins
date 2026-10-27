@@ -185,7 +185,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 10h, presencial na Rua da Quitanda, 19, sala 711, Centro. Até lá!'])
     eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T10:00', cfg)!.inicio, slotDeIso('2026-10-15T10:30', cfg)!.inicio]])
     eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T10:00', cfg)!.inicio)
-    eq('agenda: tarefa "Agendamento IA" no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T10:00', cfg)!.inicio)
+    eq('agenda: tarefa de reunião no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T10:00', cfg)!.inicio)
     eq('agenda: etapa Reunião Agendada e IA desligada', [w.statusId, w.tags.has('lia'), w.state.finalizado?.motivo], [CRM_MAP.sdr.etapas.agendada, false, 'agendou'])
   }
   {

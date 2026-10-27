@@ -36,7 +36,7 @@ const ETAPA: Record<number, string> = {
   85921939: 'Leads de entrada', 85921943: 'Qualificação', 112779736: 'follow - não responde', 85921947: 'Retorno Imediato/Fazer analise',
   112457304: 'lead qualificado', 85921951: 'Reunião Agendada', 86791959: 'Repescar', 143: 'Venda perdida',
 }
-const TAREFA: Record<number, string> = { 4231636: 'Agendamento IA', 1: 'Follow-up (24h)' }
+const TAREFA: Record<number, string> = { 2: 'Reunião marcada', 1: 'Follow-up (24h)' }
 
 const PADRAO: TesteOpcoes = { perfil: 'novo', versao: 'vigente' }
 

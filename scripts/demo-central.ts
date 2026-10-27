@@ -144,14 +144,14 @@ const teste = {
     ],
     mundo: {
       statusId: 85921951, tags: ['lia-finalizou'], ocupados: [],
-      tasks: [{ typeId: 4231636, text: 'Reunião online marcada pela Lia: quinta (16/10) às 10h.', completeTill: Math.floor(NOW / 1000) + 86400 }],
+      tasks: [{ typeId: 2, text: 'Reunião online marcada pela Lia: quinta (16/10) às 10h.', completeTill: Math.floor(NOW / 1000) + 86400 }],
       notes: ['🤖 Lia · análise do contracheque PMERJ 09/2026\nAnálise IA (qualificado): comprometimento e redução acima do mínimo', '🤖 IA finalizou: Análise do contracheque e reunião · agendou\n\nReunião online em quinta (16/10) às 10h.'],
       state: { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83 }, finalizado: { motivo: 'agendou', em: new Date(NOW - 420_000).toISOString(), resumo: 'Reunião online em quinta (16/10) às 10h.' } },
     },
     detalhes: {
       r1: { tools: [], log: [], guard: [], ms: 6800, custoUsd: 0.0009, handoff: false },
       r3: { tools: ['analisar_contracheque'], log: ['analisar_contracheque({}) → QUALIFICADO. Comprometimento 59,6%. Redução mensal estimada (teto de 40%): R$ 1.617,83.', 'etapa → 112457304'], guard: [], ms: 11200, custoUsd: 0.0017, handoff: false },
-      r5: { tools: ['agendar_reuniao', 'trava:texto-aprovado'], log: ['agendar_reuniao({"data_hora":"2026-10-16T10:00","formato":"online"}) → Reunião marcada', 'tarefa 4231636', 'etapa → 85921951'], guard: [], ms: 9900, custoUsd: 0.0012, handoff: true },
+      r5: { tools: ['agendar_reuniao', 'trava:texto-aprovado'], log: ['agendar_reuniao({"data_hora":"2026-10-16T10:00","formato":"online"}) → Reunião marcada', 'tarefa 2', 'etapa → 85921951'], guard: [], ms: 9900, custoUsd: 0.0012, handoff: true },
     },
     turnos: 3, custoUsd: 0.0038,
   },

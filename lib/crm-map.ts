@@ -142,7 +142,8 @@ export const CRM_MAP = {
       { re: /CBMERJ|BOMBEIRO/i, enumId: 598406 }, // Corpo de bombeiros RJ
     ],
     tarefas: {
-      tipoAgendamento: 4231636, // "Agendamento IA"
+      // "Meeting" (padrão do Kommo). O "Agendamento IA" (4231636) é de outra integração: o Kommo recusa (403 Client UUID mismatch)
+      tipoAgendamento: 2,
       tipoRetorno: 1, // "Follow-up"
       horasRetorno: 24,
       /** motivos de finalização que viram tarefa de retorno em 24h */

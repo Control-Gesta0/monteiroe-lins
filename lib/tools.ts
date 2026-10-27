@@ -401,7 +401,12 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   } catch (e) {
     await port.addNote(`⚠️ Lia marcou ${slot.rotulo}, mas NÃO conseguiu criar o evento na Google Agenda: ${e instanceof Error ? e.message : String(e)}. Criar à mão.`)
   }
-  await port.createTask(sdr.tarefas.tipoAgendamento, `Reunião ${formato} marcada pela Lia: ${slot.rotulo}. Análise: comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês.`, slot.inicio)
+  // Daqui em diante a reunião JÁ está marcada (campo + agenda): falha na tarefa não pode virar "agenda fora do ar"
+  try {
+    await port.createTask(sdr.tarefas.tipoAgendamento, `Reunião ${formato} marcada pela Lia: ${slot.rotulo}. Análise: comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês.`, slot.inicio)
+  } catch (e) {
+    await port.addNote(`⚠️ Lia marcou ${slot.rotulo}, mas NÃO conseguiu criar a tarefa: ${e instanceof Error ? e.message : String(e)}. Criar à mão.`)
+  }
   await moverSdr(port, sdr.etapas.agendada)
   await aplicarFinalizacao(ctx, 'agendou', `Reunião ${formato} em ${slot.rotulo}.`)
   return ok(`Reunião marcada: ${slot.rotulo}, ${formato}. A confirmação já sai pelo sistema.`, { handoff: true, textoFinal: confirmacao(ctx.textos || {}, slot.rotulo, onde) })
