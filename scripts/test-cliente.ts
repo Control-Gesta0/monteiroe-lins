@@ -369,5 +369,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('cobrança: madrugada vai para 9h do mesmo dia', hora(emHorarioComercial(brt('2026-10-28T03:00:00'))), hora(brt('2026-10-28T09:00:00')))
   eq('cobrança: sábado 21h e domingo pulam para segunda 9h', [hora(emHorarioComercial(brt('2026-10-31T21:00:00'))), hora(emHorarioComercial(brt('2026-11-01T11:00:00')))], [hora(brt('2026-11-02T09:00:00')), hora(brt('2026-11-02T09:00:00'))])
   eq('cobrança: a chave muda com o lead, o lembrete e o pedido', new Set([chaveCobranca(1, 1, 100, 'x'), chaveCobranca(2, 1, 100, 'x'), chaveCobranca(1, 2, 100, 'x'), chaveCobranca(1, 1, 101, 'x')]).size, 4)
+  const { nomeDoEscritorio } = await import('../lib/guards')
+  eq('nome: "da Monteiro & Lins" vira "do escritório Monteiro & Lins"', [nomeDoEscritorio('Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia.'), nomeDoEscritorio('Da Monteiro e Lins'), nomeDoEscritorio('do escritório Monteiro & Lins')],
+    ['Aqui é a Lia, assistente virtual do escritório Monteiro & Lins.', 'Do escritório Monteiro & Lins', 'do escritório Monteiro & Lins'])
   return 0
 }

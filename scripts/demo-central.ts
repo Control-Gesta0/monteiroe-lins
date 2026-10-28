@@ -15,7 +15,7 @@ const NOMES = ['Sgt. Marcos Teixeira', 'Cb. Renata Alves', 'Sd. Bruno Lima', 'Te
   'Sd. Paulo Ramos', 'Sgt. Luciana Melo', 'Cb. Diego Faria', 'Sub. Ricardo Pinto', 'Sd. Aline Costa', 'Sgt. Júlio Barros']
 
 type Roteiro = Array<Omit<ExecEntry, 'at' | 'leadId' | 'nome'> & { depois: number }>
-const ABRE = 'Oi! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório de direito bancário que atua desde a década de 90. A gente cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
+const ABRE = 'Oi! Aqui é a Lia, assistente virtual do escritório Monteiro & Lins, de direito bancário que atua desde a década de 90. A gente cuida de quem tá com o salário preso em consignado. A análise é gratuita: me manda uma foto ou PDF do seu último contracheque?'
 const CC = '[imagem do lead]: CONTRACHEQUE | PMERJ | 09/2026 | sim\nRUBRICA | 001 | SOLDO | P | 6.200,00\n…'
 
 const ROTEIROS: Roteiro[] = [

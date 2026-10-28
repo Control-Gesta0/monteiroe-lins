@@ -35,7 +35,7 @@ const CONTRACHEQUE_RENDA_BAIXA = [
   'RUBRICA | 300 | IMP RENDA | D | 600,00',
   'RUBRICA | 501 | EMP CONSIG SANTANDER | D | 2.600,00',
 ].join('\n')
-const ABERTURA = 'Boa tarde! Aqui é a Lia, assistente virtual da Monteiro & Lins, escritório especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
+const ABERTURA = 'Boa tarde! Aqui é a Lia, assistente virtual do escritório Monteiro & Lins, especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
 const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
 /** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */

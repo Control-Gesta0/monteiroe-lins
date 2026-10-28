@@ -111,5 +111,10 @@ export function mascararPII(texto: string): string {
 
 /** Negrito do WhatsApp é UM asterisco de cada lado: o modelo escreve **x** (Markdown) e o lead veria os asteriscos sobrando. */
 export function paraWhatsApp(text: string): string {
-  return text.replace(/\*\*([^*\n]+?)\*\*/g, '*$1*').replace(/__([^_\n]+?)__/g, '_$1_')
+  return nomeDoEscritorio(text.replace(/\*\*([^*\n]+?)\*\*/g, '*$1*').replace(/__([^_\n]+?)__/g, '_$1_'))
+}
+
+/** É "do escritório Monteiro & Lins", nunca "da Monteiro & Lins" (Dra. Patrícia, 28/10/2026). */
+export function nomeDoEscritorio(text: string): string {
+  return text.replace(/\b([Dd])a Monteiro (?:&|e) Lins(?: Advocacia)?/g, (_m, d: string) => `${d}o escritório Monteiro & Lins`)
 }

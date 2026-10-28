@@ -8,7 +8,7 @@ const jet = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '600'], variabl
 
 export const metadata: Metadata = {
   title: 'Central de IA · Monteiro & Lins',
-  description: 'A Lia, assistente virtual da Monteiro & Lins Advocacia, ao vivo: contracheques analisados, reuniões marcadas, passagens para a equipe e custos',
+  description: 'A Lia, assistente virtual do escritório Monteiro & Lins Advocacia, ao vivo: contracheques analisados, reuniões marcadas, passagens para a equipe e custos',
   robots: { index: false, follow: false },
 }
 

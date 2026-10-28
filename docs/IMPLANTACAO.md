@@ -53,7 +53,7 @@ Itens com 🙋 precisam de alguém do escritório ou da Control Gestão no Kommo
 4. ✅ **Campo de resposta:** "Resposta IA (Lia)" criado no lead pela API em 14/10/2026 (ID `1128813`, textarea) e já está em `CRM_MAP.respostaFieldId`.
 5. ✅ **Salesbot de envio:** "Lia envio", ID `93439`, criado e salvo na tela em 14/10/2026 com um passo "Enviar mensagem" cujo texto é o campo do lead **Resposta IA (Lia)** (grupo "IA Lia"). ID em `KOMMO_BOT_ID`. A entrega real só se prova no E2E (item 11).
 6. 🙋 **Template de boas-vindas no WhatsApp (Meta)**, para lead de formulário que ainda não mandou mensagem. Sugestão (o trecho "Aqui é a Lia, assistente virtual" precisa ficar igual, é como o sistema reconhece que não foi uma pessoa):
-   > Oi, {{1}}! Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. Somos um escritório de direito bancário que atua desde a década de 90, e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
+   > Oi, {{1}}! Aqui é a Lia, assistente virtual do escritório Monteiro & Lins Advocacia. Recebemos o seu cadastro sobre os descontos de consignado. Somos um escritório de direito bancário que atua desde a década de 90, e a análise do contracheque é gratuita. Pode me mandar uma foto ou PDF do seu último contracheque?
 7. 🙋 **Digital Pipeline** em "Leads de entrada" do Funil/SDR: pôr a tag `lia` e enviar o template acima. Na rampagem, só para os leads escolhidos.
 8. ✅ **Vercel:** projeto `lia-monteiro-lins` (time Control Gestão), 20 variáveis, `WEBHOOK_SECRET` novo, `REDIS_PREFIX=ak-monteiro-lins:`. Deploy de produção em 15/10/2026.
 9. ✅ **Validado no ar:** saúde 200, `/api/validate` `ok: true`, 401 sem o secret.
