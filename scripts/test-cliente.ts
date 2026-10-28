@@ -371,6 +371,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('cobrança: a chave muda com o lead, o lembrete e o pedido', new Set([chaveCobranca(1, 1, 100, 'x'), chaveCobranca(2, 1, 100, 'x'), chaveCobranca(1, 2, 100, 'x'), chaveCobranca(1, 1, 101, 'x')]).size, 4)
   const { nomeDoEscritorio } = await import('../lib/guards')
   eq('nome: "da Monteiro & Lins" vira "do escritório Monteiro & Lins"', [nomeDoEscritorio('Aqui é a Lia, assistente virtual da Monteiro & Lins Advocacia.'), nomeDoEscritorio('Da Monteiro e Lins'), nomeDoEscritorio('do escritório Monteiro & Lins')],
-    ['Aqui é a Lia, assistente virtual do escritório Monteiro & Lins.', 'Do escritório Monteiro & Lins', 'do escritório Monteiro & Lins'])
+    ['Aqui é a Lia, assistente virtual do escritório Monteiro & Lins Advocacia.', 'Do escritório Monteiro & Lins', 'do escritório Monteiro & Lins'])
+  eq('nome: sem "&", "na" e "pela" também viram "escritório"', [nomeDoEscritorio('A equipe da Monteiro Lins vai te ligar.'), nomeDoEscritorio('Na Monteiro & Lins a análise é gratuita.'), nomeDoEscritorio('Atendido pela Monteiro e Lins.')],
+    ['A equipe do escritório Monteiro & Lins vai te ligar.', 'No escritório Monteiro & Lins a análise é gratuita.', 'Atendido pelo escritório Monteiro & Lins.'])
   return 0
 }

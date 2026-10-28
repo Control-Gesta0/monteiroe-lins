@@ -116,5 +116,7 @@ export function paraWhatsApp(text: string): string {
 
 /** É "do escritório Monteiro & Lins", nunca "da Monteiro & Lins" (Dra. Patrícia, 28/10/2026). */
 export function nomeDoEscritorio(text: string): string {
-  return text.replace(/\b([Dd])a Monteiro (?:&|e) Lins(?: Advocacia)?/g, (_m, d: string) => `${d}o escritório Monteiro & Lins`)
+  const masc: Record<string, string> = { da: 'do', Da: 'Do', na: 'no', Na: 'No', pela: 'pelo', Pela: 'Pelo' }
+  return text
+    .replace(/\b(da|Da|na|Na|pela|Pela) Monteiro (?:& |e )?Lins( Advocacia)?/g, (_m, p: string, adv = '') => `${masc[p]} escritório Monteiro & Lins${adv}`)
 }
