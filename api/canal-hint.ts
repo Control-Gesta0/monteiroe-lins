@@ -104,6 +104,20 @@ async function atender(e: EventoStevo, webhookId: string): Promise<void> {
   }
 }
 
+/** Mensagem de conversa que o lerEvento descartou (ex.: @lid sem número): guarda o resumo das últimas 30 para diagnóstico. */
+async function anotarDescartado(canal: string, body: Record<string, any>): Promise<void> {
+  if (body?.event !== 'Message' && body?.event !== 'SendMessage') return
+  const info = (body?.data?.Info || {}) as Record<string, unknown>
+  const campos = ['Chat', 'Sender', 'ChatAlt', 'SenderAlt', 'RecipientAlt', 'IsFromMe', 'IsGroup', 'Type', 'Timestamp']
+  const resumo = { canal, event: body.event, ...Object.fromEntries(campos.filter(c => info[c] !== undefined).map(c => [c, info[c]])), chaves: Object.keys(body?.data?.Message || {}).slice(0, 6) }
+  try {
+    const chave = k('stevo', 'descartados')
+    await redis.lpush(chave, JSON.stringify(resumo))
+    await redis.ltrim(chave, 0, 29)
+    await redis.expire(chave, 3 * 86400)
+  } catch (e) { console.error('[canal-hint] falha anotando descarte:', e) }
+}
+
 /** Saída do número que não foi a IA: a equipe falou (Kommo ou celular) → a Lia recua. */
 async function equipeFalou(e: EventoStevo): Promise<void> {
   const leadId = await leadDaConversa(e.canal, e.fone)
@@ -124,7 +138,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // O primeiro evento autenticado (inclusive CONNECTION) ensina o token e o servidor
   try { await aprenderInstancia(canal, body) } catch (e) { console.error('[canal-hint] falha guardando a instância:', e) }
   const evento = lerEvento(canal, body)
-  if (!evento) return res.status(200).json({ ok: true, ignorado: 'não é conversa' })
+  if (!evento) {
+    await anotarDescartado(canal, body)
+    return res.status(200).json({ ok: true, ignorado: 'não é conversa' })
+  }
 
   const r = await registrarEvento(evento)
   if (!r) return res.status(200).json({ ok: true, repetido: true })
