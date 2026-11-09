@@ -52,11 +52,15 @@ export function semNono(fone: string): string | null {
 type Contato = { id: number; name?: string; custom_fields_values?: Array<{ field_code?: string; values: Array<{ value?: unknown }> }> | null }
 type LeadV = KommoLead & { created_at?: number }
 
-/** Já tem conversa no card: o lead escreveu primeiro ou alguém (robô do Kommo, equipe) já mandou mensagem. */
-async function conversaComecou(leadId: number): Promise<boolean> {
-  const d = await kommoGet<{ _embedded?: { events?: unknown[] } } | null>(`/api/v4/events?filter[entity]=lead&filter[entity_id]=${leadId}&filter[type][]=incoming_chat_message&filter[type][]=outgoing_chat_message&limit=1`)
-  return Boolean(d?._embedded?.events?.length)
+/** Mensagens que o Kommo já registrou no card (do lead e para o lead: robô, equipe ou outra integração). */
+async function chatNoKommo(leadId: number): Promise<{ doLead: boolean; paraLead: boolean }> {
+  const d = await kommoGet<{ _embedded?: { events?: Array<{ type: string }> } } | null>(`/api/v4/events?filter[entity]=lead&filter[entity_id]=${leadId}&filter[type][]=incoming_chat_message&filter[type][]=outgoing_chat_message&limit=50`)
+  const tipos = (d?._embedded?.events || []).map(e => e.type)
+  return { doLead: tipos.includes('incoming_chat_message'), paraLead: tipos.includes('outgoing_chat_message') }
 }
+
+/** Lead escreveu e ficou sem resposta há mais disto (a Stevo não entregou): a Lia abre a conversa. */
+const SEM_RESPOSTA_MS = 2 * 60_000
 
 export async function abrirConversa(leadId: number, esperaMs = ESPERA_MS): Promise<void> {
   if (!CONFIG.liaDesde || CONFIG.canalLia !== 'stevo' || !CONFIG.gateTag) return
@@ -72,7 +76,13 @@ export async function abrirConversa(leadId: number, esperaMs = ESPERA_MS): Promi
   const pular = (motivo: string) => logExec({ tipo: 'pulou', leadId, nome, porta: 'abertura', detalhe: `abertura: ${motivo}` })
   if (tags.includes(CONFIG.gateTag) || tags.includes(CONFIG.humanTag) || BLOQUEIOS.some(t => tags.includes(t))) return pular('o card já tem tag de atendimento')
   if ((await getHistory(leadId)).length || (await rotaDoLead(leadId))) return pular('a conversa já começou pelo WhatsApp')
-  if (await conversaComecou(leadId)) return pular('o card já tem conversa no Kommo (o lead escreveu primeiro ou outro robô já mandou mensagem)')
+  const chat = await chatNoKommo(leadId)
+  if (chat.paraLead) return pular('o card já tem mensagem para o lead (robô do Kommo ou equipe)')
+  // Escreveu primeiro: quem responde é o webhook da Stevo. Se passou do prazo sem nada chegar (Stevo fora), a Lia abre.
+  if (chat.doLead && Date.now() - (lead.created_at || 0) * 1000 < SEM_RESPOSTA_MS) {
+    await redis.del(k('abertura', leadId))
+    return
+  }
 
   const contatoId = (lead._embedded?.contacts || []).find(c => c.is_main)?.id ?? lead._embedded?.contacts?.[0]?.id
   const contato = contatoId ? await kommoGet<Contato>(`/api/v4/contacts/${contatoId}`) : null
