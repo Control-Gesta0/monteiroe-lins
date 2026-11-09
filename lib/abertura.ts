@@ -9,6 +9,7 @@ import { appendMessage, getHistory } from './history'
 import { addLeadNote, addLeadTags, kommoGet, leadTags, sleep, type KommoLead } from './kommo'
 import { k, redis } from './redis'
 import { getState, patchState } from './state'
+import { statusStevo } from './stevo'
 import { guardarRota, rotaDoLead } from './stevo-conversa'
 import { sendReply } from './transport'
 
@@ -57,11 +58,11 @@ async function conversaComecou(leadId: number): Promise<boolean> {
   return Boolean(d?._embedded?.events?.length)
 }
 
-export async function abrirConversa(leadId: number): Promise<void> {
+export async function abrirConversa(leadId: number, esperaMs = ESPERA_MS): Promise<void> {
   if (!CONFIG.liaDesde || CONFIG.canalLia !== 'stevo' || !CONFIG.gateTag) return
   const canal = Object.keys(CANAIS).find(c => CANAIS[c].ia)
   if (!canal) return
-  await sleep(ESPERA_MS) // deixa o Kommo ligar contato e tags, e a Stevo registrar quem escreveu primeiro
+  await sleep(esperaMs) // deixa o Kommo ligar contato e tags, e a Stevo registrar quem escreveu primeiro
   const lead = await kommoGet<LeadV>(`/api/v4/leads/${leadId}?with=contacts`)
   if (!cardDaLia(lead)) return
   // Um card, uma abertura: o Kommo manda "add_lead" e "status_lead" juntos
@@ -80,6 +81,13 @@ export async function abrirConversa(leadId: number): Promise<void> {
   if (!fone) {
     await addLeadNote(leadId, 'Lia: o card não tem telefone válido, a primeira mensagem não foi enviada.')
     return pular('sem telefone no contato')
+  }
+
+  // WhatsApp fora da Stevo: não manda e solta a trava; a varredura tenta de novo quando voltar
+  if ((await statusStevo(canal)).status !== 'conectado') {
+    await redis.del(k('abertura', leadId))
+    await logExec({ tipo: 'erro', leadId, nome, porta: 'abertura', detalhe: 'abertura adiada: o WhatsApp da Lia está desconectado da Stevo' })
+    return
   }
 
   const base = await baseVigente()
@@ -109,4 +117,23 @@ export async function abrirConversa(leadId: number): Promise<void> {
     await agendarCobrancas(leadId, agora).catch(e => console.error(`[abertura] lead ${leadId}: não agendei os lembretes`, e))
   }
   await logExec({ tipo: 'menu', leadId, nome, porta: 'abertura', detalhe: `primeira mensagem · ${enviado}`, respostaIA: texto })
+}
+
+/**
+ * Varredura de reserva (sem depender do webhook): cards da Lia criados nas últimas 12 horas
+ * que ainda não tiveram abertura. Só pega card com mais de 30 s (o webhook, quando existe, chega antes).
+ */
+export async function varrerNovos(agora = Date.now()): Promise<number[]> {
+  if (!CONFIG.liaDesde) return []
+  const { pipelineId, etapas } = CRM_MAP.sdr
+  const de = Math.floor(Math.max(CONFIG.liaDesde, agora - 12 * 3600_000) / 1000)
+  const d = await kommoGet<{ _embedded?: { leads?: LeadV[] } } | null>(`/api/v4/leads?filter[pipeline_id]=${pipelineId}&filter[created_at][from]=${de}&filter[statuses][0][pipeline_id]=${pipelineId}&filter[statuses][0][status_id]=${etapas.qualificacao}&filter[statuses][1][pipeline_id]=${pipelineId}&filter[statuses][1][status_id]=${etapas.entrada}&limit=50`)
+  const candidatos: number[] = []
+  for (const l of d?._embedded?.leads || []) {
+    if (!cardDaLia(l) || agora / 1000 - (l.created_at || 0) < 30) continue
+    if (await redis.exists(k('abertura', l.id))) continue
+    candidatos.push(l.id)
+  }
+  for (const id of candidatos) await abrirConversa(id, 0)
+  return candidatos
 }

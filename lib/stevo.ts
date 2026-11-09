@@ -69,10 +69,12 @@ export async function aprenderInstancia(canal: string, body: Record<string, unkn
 async function stevo<T>(canal: string, caminho: string, corpo: unknown): Promise<T> {
   const i = await instancia(canal)
   if (!i) throw new Error(`Stevo: o número "${canal}" ainda não mandou nenhum evento pelo webhook com a chave (sem token)`)
+  // Prazo: com o WhatsApp fora da Stevo o envio fica pendurado e a função morre sem registrar nada
   const res = await fetch(`${i.url}${caminho}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json', apikey: i.apikey },
     body: JSON.stringify(corpo),
+    signal: AbortSignal.timeout(Number(process.env.STEVO_TIMEOUT_MS ?? 25_000)),
   })
   const texto = await res.text()
   // Envio não é idempotente: sem retry (um 502 pode ter entregado a mensagem).

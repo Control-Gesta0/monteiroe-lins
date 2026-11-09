@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { waitUntil } from '@vercel/functions'
 import crypto from 'crypto'
-import { abrirConversa } from '../lib/abertura'
+import { abrirConversa, varrerNovos } from '../lib/abertura'
 import { CONFIG } from '../lib/config'
 import { CRM_MAP } from '../lib/crm-map'
 import { logExec } from '../lib/execlog'
@@ -58,6 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') return res.status(200).json({ ok: true, service: 'lead-novo', ligado: Boolean(CONFIG.liaDesde) })
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
   if (!safeEq(String(req.headers['x-webhook-secret'] || req.query.secret || ''), CONFIG.webhookSecret)) return res.status(401).json({ error: 'unauthorized' })
+
+  // Varredura de reserva: ?varrer=1 (chamada agendada) procura cards novos da Lia sem abertura
+  if (req.query.varrer === '1') return res.status(200).json({ ok: true, abertos: await varrerNovos() })
 
   const ids = cardsDoWebhook(req.body).filter(interessa).map(c => c.id)
   if (!CONFIG.liaDesde || !ids.length) return res.status(200).json({ ok: true, ids: ids.length, ligado: Boolean(CONFIG.liaDesde) })
