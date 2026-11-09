@@ -56,6 +56,8 @@ export const CONFIG = {
   stevoInstances: json<Record<string, { url?: string; apikey?: string }>>(process.env.STEVO_INSTANCES, {}),
   /** Card novo no número da Lia já ganha a tag de gate (fim da rampagem). Desligado = só quem tem a tag. */
   stevoTagLia: ['1', 'true', 'sim'].includes((process.env.STEVO_TAG_LIA || '').toLowerCase()),
+  /** Produção (LIA_DESDE, data ISO ou epoch ms): card do Funil/SDR criado depois disso é da Lia (tag e primeira mensagem). Vazio = desligado. */
+  liaDesde: (v => (/^\d+$/.test(v) ? Number(v) : Date.parse(v) || 0))((process.env.LIA_DESDE || '').trim()),
 
   // Cobrança do contracheque (lib/cobranca.ts): lembretes atrasados pelo QStash. COBRANCA_CONTRACHEQUE=0 desliga.
   cobrancaContracheque: (process.env.COBRANCA_CONTRACHEQUE || '1') !== '0',

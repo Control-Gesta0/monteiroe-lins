@@ -102,3 +102,10 @@ O WhatsApp Lite do Kommo não entrega foto para a Lia (só um aviso "você receb
 - **Quem já é cliente:** só recebe a mensagem de 24h se o lead dele tiver a tag `lia`. Para atender os funis de clientes, a tag precisa entrar por automação nesses funis também (decisão do escritório).
 - **Leads em Repescar (1.736 em 15/10/2026):** estão na lista de etapas protegidas, então a Lia trata como atendimento. Uma campanha de recuperação precisa de porta própria.
 - **Planilha:** se o escritório mudar a planilha, refazer a prova de `docs/analise-base-kommo.md` seção 8 e rodar `npm test`.
+
+## Produção (09/11/2026)
+
+- **Ligado** com `STEVO_TAG_LIA=1` e `LIA_DESDE=2026-11-09T14:59:12Z` na Vercel. Card do Funil/SDR criado depois dessa data, em "Leads de entrada" ou Qualificação, é da Lia. Cards anteriores e os que estão em outras etapas ou funis seguem com a equipe. Para desligar, basta apagar `LIA_DESDE` e fazer o redeploy.
+- **Primeira mensagem**: o lead do formulário (tag LEC) não escreve primeiro. O webhook do Kommo (`add_lead` e `status_lead`) chama `/api/lead-novo?secret=…`. Depois de 30 s, a Lia confere o card. Se ele for da Lia e ainda não tiver conversa (sem mensagem do lead, de robô ou da equipe), ela põe a tag `lia`, manda a abertura pela Stevo e agenda os lembretes do contracheque (`lib/abertura.ts`). Telefone inválido ou envio recusado viram uma nota no card.
+- **Quem escreve primeiro** (anúncio de clique para o WhatsApp) é atendido pelo webhook da Stevo. O card ganha a tag `lia` se for novo e estiver chegando (`lib/stevo-card.ts`).
+- **Robôs do Kommo**: com a Lia ligada, o robô da primeira mensagem e o de follow-up do Funil/SDR precisam estar desligados. Senão o lead recebe duas mensagens, e a mensagem do robô no número da Lia faz ela achar que a equipe assumiu.

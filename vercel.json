@@ -42,6 +42,10 @@
     "api/cobranca.ts": {
       "maxDuration": 60,
       "includeFiles": "prompts/**"
+    },
+    "api/lead-novo.ts": {
+      "maxDuration": 120,
+      "includeFiles": "prompts/**"
     }
   }
 }

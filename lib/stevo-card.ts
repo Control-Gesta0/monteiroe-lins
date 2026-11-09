@@ -17,7 +17,7 @@ import type { EventoStevo } from './stevo'
  *  3. card aberto em outro funil (quem já é cliente) → é ele, sem mexer (a Lia trata
  *     como atendimento);
  *  4. nenhum → cria em Funil/SDR > Qualificação.
- * A tag de gate só entra sozinha com STEVO_TAG_LIA ligado (fim da rampagem).
+ * A tag de gate só entra sozinha com STEVO_TAG_LIA e LIA_DESDE ligados (produção), e só em card novo.
  */
 
 const ESPERA_STEVO_MS = Number(process.env.STEVO_ESPERA_MS ?? 5000)
@@ -50,23 +50,29 @@ export async function cardDaConversa(e: EventoStevo): Promise<Card> {
   const [funis, leads] = await Promise.all([funisAoVivo(), leadsDoContato(contato)])
   const abertos = leads.filter(aberto)
   const agora = Date.now() / 1000
-  const tagar = async (id: number) => { if (CONFIG.stevoTagLia && CONFIG.gateTag) await addLeadTags(id, [CONFIG.gateTag]) }
+  // Tag só em card novo (criado depois de LIA_DESDE) que está chegando: entrada/não triado ou Qualificação.
+  // Card antigo, ou já em outra etapa do SDR (reunião, repescar...), segue com a equipe.
+  const tagar = async (l: KommoLeadV, chegando: boolean) => {
+    if (!CONFIG.stevoTagLia || !CONFIG.gateTag || !CONFIG.liaDesde || (l.created_at || 0) * 1000 < CONFIG.liaDesde) return
+    if (chegando || l.status_id === CRM_MAP.sdr.etapas.qualificacao || l.status_id === CRM_MAP.sdr.etapas.entrada) await addLeadTags(l.id, [CONFIG.gateTag])
+  }
 
   const noSdr = recente(abertos.filter(l => l.pipeline_id === CRM_MAP.sdr.pipelineId))
   if (noSdr) {
-    if (naoTriado(funis, noSdr)) await trazerParaSdr(noSdr, funis)
-    await tagar(noSdr.id)
+    const chegando = naoTriado(funis, noSdr)
+    if (chegando) await trazerParaSdr(noSdr, funis)
+    await tagar(noSdr, chegando)
     return { leadId: noSdr.id, como: 'sdr' }
   }
   const daStevo = recente(abertos.filter(l => naoTriado(funis, l) && agora - (l.created_at || 0) < ADOTAR_ATE_S))
   if (daStevo) {
     await trazerParaSdr(daStevo, funis)
-    await tagar(daStevo.id)
+    await tagar(daStevo, true)
     return { leadId: daStevo.id, como: 'adotado' }
   }
   const cliente = recente(abertos)
   if (cliente) return { leadId: cliente.id, como: 'cliente' }
-  const tags = CONFIG.stevoTagLia && CONFIG.gateTag ? [CONFIG.gateTag] : []
+  const tags = CONFIG.stevoTagLia && CONFIG.gateTag && CONFIG.liaDesde ? [CONFIG.gateTag] : []
   const id = await criarLead(contato.name || e.nome || `+${e.fone}`, CRM_MAP.sdr.pipelineId, CRM_MAP.sdr.etapas.qualificacao, contato.id, tags)
   return { leadId: id, como: 'criado' }
 }

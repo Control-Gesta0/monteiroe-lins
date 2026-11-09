@@ -374,5 +374,30 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     ['Aqui é a Lia, assistente virtual do escritório Monteiro & Lins Advocacia.', 'Do escritório Monteiro & Lins', 'do escritório Monteiro & Lins'])
   eq('nome: sem "&", "na" e "pela" também viram "escritório"', [nomeDoEscritorio('A equipe da Monteiro Lins vai te ligar.'), nomeDoEscritorio('Na Monteiro & Lins a análise é gratuita.'), nomeDoEscritorio('Atendido pela Monteiro e Lins.')],
     ['A equipe do escritório Monteiro & Lins vai te ligar.', 'No escritório Monteiro & Lins a análise é gratuita.', 'Atendido pelo escritório Monteiro & Lins.'])
+
+  // ---------- 15. Produção: primeira mensagem e tag só em card novo do SDR ----------
+  const ab = await import('../lib/abertura')
+  const { cardsDoWebhook, interessa } = await import('../api/lead-novo')
+  const desde = Date.parse('2026-11-09T15:00:00Z'), depois = desde / 1000 + 60, antes = desde / 1000 - 60
+  const et = CRM_MAP.sdr.etapas
+  eq('produção: card da Lia = Funil/SDR, entrada ou Qualificação, criado depois de LIA_DESDE', [
+    ab.cardDaLia({ pipeline_id: CRM_MAP.sdr.pipelineId, status_id: et.qualificacao, created_at: depois }, desde),
+    ab.cardDaLia({ pipeline_id: CRM_MAP.sdr.pipelineId, status_id: et.entrada, created_at: depois }, desde),
+    ab.cardDaLia({ pipeline_id: CRM_MAP.sdr.pipelineId, status_id: et.qualificacao, created_at: antes }, desde),
+    ab.cardDaLia({ pipeline_id: CRM_MAP.sdr.pipelineId, status_id: et.agendada, created_at: depois }, desde),
+    ab.cardDaLia({ pipeline_id: 12150539, status_id: et.qualificacao, created_at: depois }, desde),
+    ab.cardDaLia({ pipeline_id: CRM_MAP.sdr.pipelineId, status_id: et.qualificacao, created_at: depois }, 0),
+  ], [true, true, false, false, false, false])
+  eq('produção: telefone do Kommo vira DDI 55; celular com 9 tem a versão sem 9', [
+    ab.foneParaEnvio('+55 21 98628-5265'), ab.foneParaEnvio('(21) 98628-5265'), ab.foneParaEnvio('2198628526'), ab.foneParaEnvio('123'),
+    ab.semNono('5521986285265'), ab.semNono('552133334444'),
+  ], ['5521986285265', '5521986285265', '552198628526', '', '552186285265', null])
+  eq('produção: cards do webhook de lead novo (chaves planas e aninhadas); só SDR em entrada/Qualificação interessa', [
+    cardsDoWebhook({ 'leads[add][0][id]': '22375684', 'leads[add][0][status_id]': '85921943', 'leads[add][0][pipeline_id]': '11197195', 'account[id]': '1' }).filter(interessa).map(c => c.id),
+    cardsDoWebhook({ leads: { status: [{ id: '22375458', status_id: '85921951', pipeline_id: '11197195' }], add: { 0: { id: 22375684 } } } }).filter(interessa).map(c => c.id),
+    cardsDoWebhook({ leads: { status: [{ id: '1', status_id: '85921943', pipeline_id: '12150539' }] } }).filter(interessa).map(c => c.id),
+    cardsDoWebhook({ 'message[add][0][id]': 'x' }),
+  ], [[22375684], [22375684], [], []])
+
   return 0
 }
