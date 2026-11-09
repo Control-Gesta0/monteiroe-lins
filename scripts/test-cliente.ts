@@ -353,7 +353,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('painel: a página escapa o que vem do Kommo e não tem dado nenhum', [PAGINA_PAINEL.includes("replace(/[&<>\"']/g"), /Cliente \d|lia-monteiro/.test(PAGINA_PAINEL)], [true, false])
 
   // ---------- 14. Resultado aprovado e cobrança do contracheque ----------
-  eq('nome: primeiro nome de gente; "Lead #123" e telefone não', [bc.primeiroNome('EDUARDO do Vale'), bc.primeiroNome('Lead #21024021'), bc.primeiroNome('+55 21 99999'), bc.primeiroNome('')], ['Eduardo', '', '', ''])
+  eq('nome: primeiro nome de gente; "Lead #123" e telefone não', [bc.primeiroNome('EDUARDO do Vale'), bc.primeiroNome('Lead #21024021'), bc.primeiroNome('+55 21 99999'), bc.primeiroNome(''), bc.primeiroNome('Teste Dra. Patrícia (21)')], ['Eduardo', '', '', '', ''])
   eq('resultado: texto da Dra. Patrícia com os números e os horários', bc.resultadoQualificado({}, 'Eduardo', '59,6%', 'R$ 1.617,83', 'na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*'),
     'Eduardo, após a análise, verificamos que a sua renda está comprometida em *59,6%* referente aos empréstimos consignados. Com a ação de readequação de margem, é possível reduzir cerca de *R$ 1.617,83* por mês para você. O que acha de agendarmos uma reunião com um advogado especialista na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 9h30*?')
   eq('resultado sem nome começa com maiúscula', bc.resultadoQualificado({}, '', '59,6%', 'R$ 1', 'x').slice(0, 20), 'Após a análise, veri')

@@ -121,7 +121,7 @@ export function mesclar(padrao: Textos, ...camadas: Array<Partial<Record<string,
 /** Primeiro nome do lead, se o nome do card parecer nome de gente ("Lead #123", telefone e vazio não). */
 export function primeiroNome(nome: string): string {
   const p = String(nome || '').trim().split(/\s+/)[0] || ''
-  if (!/^[A-Za-zÀ-ÿ]{2,}$/.test(p) || /^lead$/i.test(p)) return ''
+  if (!/^[A-Za-zÀ-ÿ]{2,}$/.test(p) || /^(lead|teste|test)$/i.test(p)) return ''
   return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()
 }
 
