@@ -187,10 +187,9 @@ export function buildTools(porta: Porta): OpenAI.Chat.ChatCompletionTool[] {
           type: 'object',
           properties: {
             data_hora: { type: 'string', description: 'Horário de Brasília no formato AAAA-MM-DDTHH:MM, ex.: 2026-10-16T10:00' },
-            formato: { type: 'string', enum: ['online', 'presencial'] },
             evidencia: { type: 'string', description: 'Trecho literal do lead escolhendo o horário' },
           },
-          required: ['data_hora', 'formato', 'evidencia'],
+          required: ['data_hora', 'evidencia'],
           additionalProperties: false,
         },
       },
@@ -384,6 +383,17 @@ async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
   return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: quinta o dia todo, terça e quarta só à tarde.`)
 }
 
+/**
+ * O lead escolheu um horário? Precisa citar dia ou hora ("quinta", "14h30", "12/11", "amanhã")
+ * ou apontar uma das opções oferecidas ("a primeira", "a segunda opção", "essa").
+ * "Vamos sim" / "pode marcar" sozinhos não escolhem: a Lia oferece as opções antes.
+ */
+export function escolheuHorario(texto: string, houveOferta: boolean): boolean {
+  const t = texto.toLowerCase()
+  if (/\b(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|hoje)\b|amanh[ãa]|\b\d{1,2}\s*(h\d{0,2}|:\d{2}|horas?)\b|\b\d{1,2}\/\d{1,2}\b|\bmeio[- ]dia\b/.test(t)) return true
+  return houveOferta && /\b(primeir[oa]|segund[oa]|[úu]ltim[oa]|ess[ae]|est[ae]|op[çc][ãa]o\s*[12]|\b[12]\b)/.test(t)
+}
+
 async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<ToolOutcome> {
   const { port } = ctx
   const cfg = CRM_MAP.agenda
@@ -391,6 +401,7 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   const state = await port.getState()
   if (state.analise?.decisao !== 'qualificado') return err('Só agende depois que analisar_contracheque devolver QUALIFICADO.')
   if (!evidenceFound(String(input.evidencia || ''), ctx.lastLeadText)) return err('O lead ainda não escolheu um horário nesta mensagem. Ofereça as opções e espere a resposta.')
+  if (!escolheuHorario(ctx.lastLeadText, Boolean(state.ofertados?.length))) return err('O lead topou a reunião mas ainda não escolheu dia e hora. Chame consultar_horarios e ofereça as duas opções, com dia e hora.')
   const slot = slotDeIso(String(input.data_hora || ''), cfg)
   if (!slot) return err('data_hora inválida. Use AAAA-MM-DDTHH:MM, horário de Brasília.')
   if (!naGrade(slot, cfg)) return err(`${slot.rotulo} não está na agenda (quinta o dia todo, terça e quarta só à tarde). Chame consultar_horarios e ofereça as opções válidas.`)
@@ -398,8 +409,9 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   if (ocupado(slot, await port.horariosOcupados(), cfg) || !(await port.reservarHorario(slot.inicio))) {
     return err(`${slot.rotulo} acabou de ser ocupado. Peça desculpas e chame consultar_horarios para oferecer outros.`)
   }
-  const formato = input.formato === 'presencial' ? 'presencial' : 'online'
-  const onde = formato === 'presencial' ? `presencial na ${sdr.endereco}` : 'por videochamada aqui no WhatsApp'
+  // Reunião só online (pedido do escritório, 10/11/2026)
+  const formato = 'online'
+  const onde = 'por videochamada aqui no WhatsApp'
   await port.writeFields([{ field_id: sdr.campos.agendamento, values: [{ value: slot.inicio }] }])
   // Google Agenda: falha aqui NÃO desfaz o agendamento (o Kommo já tem campo + tarefa); fica registrada no card
   try {
@@ -408,7 +420,7 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
       slot.inicio, slot.inicio + cfg.duracaoMin * 60,
       `Reunião ${formato} · lead ${lead.id} (Lia)`,
       `Marcada pela Lia no WhatsApp.\nComprometimento ${pct(state.analise.comprometimento)} · redução estimada ${brl(state.analise.reducaoMensal)}/mês.\nLead no Kommo: ${lead.id}`,
-      formato === 'presencial' ? sdr.endereco : 'Videochamada pelo WhatsApp',
+      'Videochamada pelo WhatsApp',
     )
     if (id) await port.addNote(`🗓️ Evento criado na Google Agenda: ${slot.rotulo} (${formato}).`)
   } catch (e) {

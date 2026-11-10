@@ -182,7 +182,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     ag = await runTool(ctx(port, `${transcricao}\nquinta 9h30 então`, 'quinta 9h30 então'), 'agendar_reuniao', { data_hora: '2026-10-15T09:30', formato: 'online', evidencia: 'quinta 9h30 então' })
     eq('agenda: horário que outro lead pegou é recusado', [ag.isError, /acabou de ser ocupado/.test(ag.content)], [true, true])
     ag = await runTool(ctx(port, `${transcricao}\nquinta 10h presencial`, 'quinta 10h presencial'), 'agendar_reuniao', { data_hora: '2026-10-15T10:00', formato: 'presencial', evidencia: 'quinta 10h presencial' })
-    eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 10h, presencial na Rua da Quitanda, 19, sala 711, Centro. Até lá!'])
+    // Mesmo se o modelo mandar "presencial", a reunião sai online (pedido do escritório, 10/11/2026)
+    eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 10h, por videochamada aqui no WhatsApp. Até lá!'])
     eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T10:00', cfg)!.inicio, slotDeIso('2026-10-15T10:30', cfg)!.inicio]])
     eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T10:00', cfg)!.inicio)
     eq('agenda: tarefa de reunião no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T10:00', cfg)!.inicio)
@@ -403,6 +404,13 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     classificar({ descricao: 'I.R.R.F.', tipo: 'D', valor: 5126.94 }), classificar({ descricao: 'IRRF', tipo: 'D', valor: 1 }),
     classificar({ descricao: 'CART. BENEF. PERCAPITAL', tipo: 'D', valor: 1 }), classificar({ descricao: 'SINPOL', tipo: 'D', valor: 1 }),
   ], ['DESCONTO OBRIGATÓRIO', 'DESCONTO OBRIGATÓRIO', 'CARTÃO BENEFÍCIO', 'REVISAR'])
+
+  const { escolheuHorario } = await import('../lib/tools')
+  eq('agenda: "vamos sim" não escolhe horário; dia, hora ou "a primeira" escolhem', [
+    escolheuHorario('vamos sim', true), escolheuHorario('pode marcar', true), escolheuHorario('quinta às 10h', false),
+    escolheuHorario('pode ser a primeira opção, online', true), escolheuHorario('14h30 tá ótimo', false), escolheuHorario('a primeira', false), escolheuHorario('dia 12/11', false),
+    escolheuHorario('quanto custa a reunião?', true), escolheuHorario('pode ser na terça', false),
+  ], [false, false, true, true, true, false, true, false, true])
 
   return 0
 }
