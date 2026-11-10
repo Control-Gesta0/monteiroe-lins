@@ -137,7 +137,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const mundo = (statusId = CRM_MAP.sdr.etapas.qualificacao) => {
     const w = {
       statusId, pipelineId: CRM_MAP.sdr.pipelineId, tags: new Set(['lia']), fields: {} as Record<number, unknown>, notes: [] as string[],
-      tasks: [] as Array<{ typeId: number; completeTill: number }>, state: {} as Record<string, any>, ocupados: [] as number[], lost: undefined as number | undefined, eventos: [] as Array<[number, number]>,
+      tasks: [] as Array<{ typeId: number; completeTill: number }>, state: {} as Record<string, any>, ocupados: [] as number[], lost: undefined as number | undefined, eventos: [] as Array<[number, number]>, eventosTxt: [] as string[],
     }
     const port: LeadPort = {
       getLead: async () => ({ id: 1, statusId: w.statusId, pipelineId: w.pipelineId, fields: {}, tags: [...w.tags] }),
@@ -150,7 +150,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
       markLost: async r => { w.lost = r; w.statusId = 143 },
       horariosOcupados: async () => [...w.ocupados],
       reservarHorario: async i => { if (w.ocupados.includes(i)) return false; w.ocupados.push(i); return true },
-      criarEventoAgenda: async (inicio, fim) => { w.eventos.push([inicio, fim]); return 'ev1' },
+      criarEventoAgenda: async (inicio, fim, titulo, descricao) => { w.eventos.push([inicio, fim]); w.eventosTxt.push(`${titulo}\n${descricao}`); return 'ev1' },
+      contato: async () => ({ nome: 'Eduardo do Vale', telefone: '5521986285265' }),
       agoraS: () => quartaManha,
       getState: async () => ({ ...w.state }),
       patchState: async p => Object.assign(w.state, p),
@@ -185,6 +186,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     // Mesmo se o modelo mandar "presencial", a reunião sai online (pedido do escritório, 10/11/2026)
     eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 16h, por videochamada aqui no WhatsApp. Até lá!'])
     eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T16:00', cfg)!.inicio, slotDeIso('2026-10-15T16:30', cfg)!.inicio]])
+    eq('agenda: evento com nome, telefone e WhatsApp do cliente', [w.eventosTxt[0]?.split('\n')[0], /Telefone: \+55 \(21\) 98628-5265 · WhatsApp: https:\/\/wa\.me\/5521986285265/.test(w.eventosTxt[0] || '')], ['Reunião online · Eduardo do Vale · +55 (21) 98628-5265', true])
     eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T16:00', cfg)!.inicio)
     eq('agenda: tarefa de reunião no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T16:00', cfg)!.inicio)
     eq('agenda: etapa Reunião Agendada e IA desligada', [w.statusId, w.tags.has('lia'), w.state.finalizado?.motivo], [CRM_MAP.sdr.etapas.agendada, false, 'agendou'])

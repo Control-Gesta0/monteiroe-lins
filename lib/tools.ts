@@ -1,3 +1,4 @@
+import { CONFIG } from './config'
 import type OpenAI from 'openai'
 import { CRM_MAP, campoByKey, type Campo, type Porta } from './crm-map'
 import { DISSE_NAO_SEI, evidenceFound, matchOption, overlap, parseNumeroBR } from './guards'
@@ -33,6 +34,8 @@ export interface LeadPort {
   /** cria o evento na Google Agenda; devolve o id, ou null se a agenda não está ligada */
   criarEventoAgenda(inicio: number, fim: number, titulo: string, descricao: string, local?: string): Promise<string | null>
   agoraS(): number
+  /** nome e telefone do cliente (só dígitos, com DDI), para o evento da agenda */
+  contato?(): Promise<{ nome: string; telefone: string }>
   getState(): Promise<LeadState>
   patchState(p: Partial<LeadState>): Promise<LeadState>
 }
@@ -388,6 +391,12 @@ async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
  * ou apontar uma das opções oferecidas ("a primeira", "a segunda opção", "essa").
  * "Vamos sim" / "pode marcar" sozinhos não escolhem: a Lia oferece as opções antes.
  */
+/** "5521986285265" → "+55 (21) 98628-5265" */
+export function foneLegivel(d: string): string {
+  const m = /^55(\d{2})(\d{4,5})(\d{4})$/.exec(d.replace(/\D/g, ''))
+  return m ? `+55 (${m[1]}) ${m[2]}-${m[3]}` : d
+}
+
 export function escolheuHorario(texto: string, houveOferta: boolean): boolean {
   const t = texto.toLowerCase()
   if (/\b(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo|hoje)\b|amanh[ãa]|\b\d{1,2}\s*(h\d{0,2}|:\d{2}|horas?)\b|\b\d{1,2}\/\d{1,2}\b|\bmeio[- ]dia\b/.test(t)) return true
@@ -416,10 +425,18 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   // Google Agenda: falha aqui NÃO desfaz o agendamento (o Kommo já tem campo + tarefa); fica registrada no card
   try {
     const lead = await port.getLead()
+    const c = await port.contato?.().catch(() => null)
+    const fone = c?.telefone ? foneLegivel(c.telefone) : ''
     const id = await port.criarEventoAgenda(
       slot.inicio, slot.inicio + cfg.duracaoMin * 60,
-      `Reunião ${formato} · lead ${lead.id} (Lia)`,
-      `Marcada pela Lia no WhatsApp.\nComprometimento ${pct(state.analise.comprometimento)} · redução estimada ${brl(state.analise.reducaoMensal)}/mês.\nLead no Kommo: ${lead.id}`,
+      [`Reunião ${formato}`, c?.nome || `lead ${lead.id}`, fone].filter(Boolean).join(' · '),
+      [
+        'Marcada pela Lia no WhatsApp.',
+        c?.nome ? `Cliente: ${c.nome}` : '',
+        fone ? `Telefone: ${fone} · WhatsApp: https://wa.me/${c!.telefone}` : '',
+        `Comprometimento ${pct(state.analise.comprometimento)} · redução estimada ${brl(state.analise.reducaoMensal)}/mês.`,
+        `Card no Kommo: ${CONFIG.kommoDomain}/leads/detail/${lead.id}`,
+      ].filter(Boolean).join('\n'),
       'Videochamada pelo WhatsApp',
     )
     if (id) await port.addNote(`🗓️ Evento criado na Google Agenda: ${slot.rotulo} (${formato}).`)

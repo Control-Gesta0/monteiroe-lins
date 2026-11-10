@@ -4,6 +4,8 @@ import { k, redis } from './redis'
 import { iniciosOcupadosPorIntervalos } from './agenda'
 import { criarEvento, googleAtivo, intervalosOcupados, listarEventos } from './google-calendar'
 import { getState, patchState } from './state'
+import { kommoGet } from './kommo'
+import { rotaDoLead } from './stevo-conversa'
 import type { LeadPort, LeadView } from './tools'
 
 /** Porta de produção: Kommo + Redis. Relê o lead depois de toda escrita. */
@@ -65,6 +67,16 @@ export function kommoPort(leadId: number): LeadPort {
       return criarEvento({ inicioS: inicio, fimS: fim, titulo, descricao, local })
     },
     agoraS: () => Math.floor(Date.now() / 1000),
+    async contato() {
+      // Telefone: o número da conversa na Stevo; sem ela, o telefone do contato no Kommo
+      const lead = await getLead(leadId)
+      const cid = (lead._embedded?.contacts || []).find(c => c.is_main)?.id ?? lead._embedded?.contacts?.[0]?.id
+      const c = cid ? await kommoGet<{ name?: string; custom_fields_values?: Array<{ field_code?: string; values: Array<{ value?: unknown }> }> | null }>(`/api/v4/contacts/${cid}`) : null
+      const doKommo = (c?.custom_fields_values || []).filter(v => v.field_code === 'PHONE').flatMap(v => v.values.map(x => String(x.value || '').replace(/\D/g, ''))).find(x => x.length >= 10) || ''
+      const rota = await rotaDoLead(leadId)
+      const telefone = rota?.fone || (doKommo.length <= 11 ? `55${doKommo}` : doKommo)
+      return { nome: c?.name || lead.name || '', telefone: telefone.length >= 12 ? telefone : '' }
+    },
     getState: () => getState(leadId),
     patchState: p => patchState(leadId, p),
   }
