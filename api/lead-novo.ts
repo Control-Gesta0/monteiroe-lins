@@ -16,6 +16,9 @@ function safeEq(a: string, b: string): boolean {
   return crypto.timingSafeEqual(crypto.createHash('sha256').update(a).digest(), crypto.createHash('sha256').update(b).digest())
 }
 
+/** Chave curta da URL do webhook do Kommo, derivada do WEBHOOK_SECRET. */
+export const chaveLeadNovo = (segredo = CONFIG.webhookSecret) => crypto.createHmac('sha256', segredo).update('kommo:lead-novo').digest('hex').slice(0, 24)
+
 type Item = { id: number; pipeline?: number; status?: number }
 
 /** Cards do webhook, nos dois formatos que o corpo pode chegar (chaves planas ou objeto aninhado). */
@@ -57,7 +60,10 @@ export function interessa(c: Item): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') return res.status(200).json({ ok: true, service: 'lead-novo', ligado: Boolean(CONFIG.liaDesde) })
   if (req.method !== 'POST') return res.status(405).json({ error: 'method not allowed' })
-  if (!safeEq(String(req.headers['x-webhook-secret'] || req.query.secret || ''), CONFIG.webhookSecret)) return res.status(401).json({ error: 'unauthorized' })
+  // Chave longa (?secret=) ou a curta derivada dela (?k=), mais fácil de colar no Kommo
+  const autorizado = safeEq(String(req.headers['x-webhook-secret'] || req.query.secret || ''), CONFIG.webhookSecret)
+    || safeEq(String(req.query.k || ''), chaveLeadNovo())
+  if (!autorizado) return res.status(401).json({ error: 'unauthorized' })
 
   // Varredura de reserva: ?varrer=1 (chamada agendada) procura cards novos da Lia sem abertura
   if (req.query.varrer === '1') return res.status(200).json({ ok: true, abertos: await varrerNovos() })
