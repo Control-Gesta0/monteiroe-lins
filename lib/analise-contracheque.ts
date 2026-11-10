@@ -133,7 +133,10 @@ export function classificarAutomatico(r: Rubrica): Classificacao {
   if (maiuscula(r.tipo) === 'P') return 'PROVENTO';
   if (!r.tipo) return 'INFORMAR TIPO';
   const desc = maiuscula(r.descricao);
-  for (const [palavra, classe] of REGRAS) if (desc.includes(palavra)) return classe;
+  // "I.R.R.F." também é IRRF: compara também sem os pontos (dos dois lados)
+  const semPonto = (t: string) => t.replace(/\./g, '');
+  const descSemPonto = semPonto(desc);
+  for (const [palavra, classe] of REGRAS) if (desc.includes(palavra) || descSemPonto.includes(semPonto(palavra))) return classe;
   return 'REVISAR';
 }
 

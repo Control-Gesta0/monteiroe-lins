@@ -399,5 +399,10 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     cardsDoWebhook({ 'message[add][0][id]': 'x' }),
   ], [[22375684], [22375684], [], []])
 
+  eq('planilha: "I.R.R.F." com pontos é imposto de renda (desconto obrigatório)', [
+    classificar({ descricao: 'I.R.R.F.', tipo: 'D', valor: 5126.94 }), classificar({ descricao: 'IRRF', tipo: 'D', valor: 1 }),
+    classificar({ descricao: 'CART. BENEF. PERCAPITAL', tipo: 'D', valor: 1 }), classificar({ descricao: 'SINPOL', tipo: 'D', valor: 1 }),
+  ], ['DESCONTO OBRIGATÓRIO', 'DESCONTO OBRIGATÓRIO', 'CARTÃO BENEFÍCIO', 'REVISAR'])
+
   return 0
 }
