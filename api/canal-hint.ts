@@ -136,7 +136,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!(await confiavel(canal, body, req))) return res.status(401).json({ error: 'unauthorized' })
 
   // O primeiro evento autenticado (inclusive CONNECTION) ensina o token e o servidor
-  try { await aprenderInstancia(canal, body) } catch (e) { console.error('[canal-hint] falha guardando a instância:', e) }
+  const pelaChave = igual(String(req.query.s || req.headers['x-webhook-secret'] || ''), chaveWebhook(canal))
+  try { await aprenderInstancia(canal, body, pelaChave) } catch (e) { console.error('[canal-hint] falha guardando a instância:', e) }
   const evento = lerEvento(canal, body)
   if (!evento) {
     await anotarDescartado(canal, body)

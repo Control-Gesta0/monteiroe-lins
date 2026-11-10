@@ -53,15 +53,22 @@ export async function instancia(canal: string): Promise<Instancia | null> {
   return c.apikey && c.url ? { canal, url: c.url, apikey: c.apikey } : null
 }
 
-/** Webhook autenticado: guarda o token (instanceToken) e o servidor (serverUrl), se ainda não tem. */
-export async function aprenderInstancia(canal: string, body: Record<string, unknown>): Promise<void> {
+/**
+ * Webhook autenticado: guarda o token (instanceToken) e o servidor (serverUrl).
+ * `pelaChave` (veio com a chave do número na URL): vale o token do evento, mesmo que mude.
+ * É o caso de o número ser reconectado numa instância nova da Stevo; sem isso, a Lia
+ * continuaria mandando pela instância antiga, desconectada.
+ */
+export async function aprenderInstancia(canal: string, body: Record<string, unknown>, pelaChave = false): Promise<void> {
   const env = CONFIG.stevoInstances[canal] || {}
   const atual = await credencial(canal)
   const token = String(body.instanceToken || '').trim()
   const url = limpa(String(body.serverUrl || ''))
+  const tokenOk = /^[\w.:-]{8,200}$/.test(token) ? token : ''
+  const urlOk = servidorDaStevo(url) ? url : ''
   const novo = {
-    apikey: env.apikey || atual.apikey || (/^[\w.:-]{8,200}$/.test(token) ? token : ''),
-    url: limpa(env.url || '') || atual.url || (servidorDaStevo(url) ? url : ''),
+    apikey: env.apikey || (pelaChave && tokenOk) || atual.apikey || tokenOk,
+    url: limpa(env.url || '') || (pelaChave && tokenOk && urlOk) || atual.url || urlOk,
   }
   if (novo.apikey !== atual.apikey || novo.url !== atual.url) await guardar(canal, novo)
 }
