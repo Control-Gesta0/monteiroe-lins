@@ -104,6 +104,22 @@ async function atender(e: EventoStevo, webhookId: string): Promise<void> {
   }
 }
 
+/** Webhook recusado (URL sem a chave, nome do número errado, instância nova): resumo das últimas 30, sem token. */
+async function anotarRecusa(r: { motivo: string; canal: string; body: Record<string, any>; req: VercelRequest }): Promise<void> {
+  const tok = String(r.body?.instanceToken || '')
+  const resumo = {
+    quando: new Date().toISOString(), motivo: r.motivo, canal: r.canal, temChave: Boolean(r.req.query.s),
+    event: r.body?.event, instancia: r.body?.instanceName || r.body?.instance || r.body?.instanceId,
+    servidor: r.body?.serverUrl, token: tok ? `${tok.slice(0, 4)}…(${tok.length})` : '',
+  }
+  try {
+    const chave = k('stevo', 'recusados')
+    await redis.lpush(chave, JSON.stringify(resumo))
+    await redis.ltrim(chave, 0, 29)
+    await redis.expire(chave, 3 * 86400)
+  } catch (e) { console.error('[canal-hint] falha anotando recusa:', e) }
+}
+
 /** Mensagem de conversa que o lerEvento descartou (ex.: @lid sem número): guarda o resumo das últimas 30 para diagnóstico. */
 async function anotarDescartado(canal: string, body: Record<string, any>): Promise<void> {
   if (body?.event !== 'Message' && body?.event !== 'SendMessage') return
@@ -132,8 +148,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const canal = String(req.query.canal || '').toLowerCase().trim()
   const body = (req.body || {}) as Record<string, any>
-  if (!CANAIS[canal]) return res.status(200).json({ ok: false, reason: 'canal desconhecido' })
-  if (!(await confiavel(canal, body, req))) return res.status(401).json({ error: 'unauthorized' })
+  if (!CANAIS[canal]) {
+    await anotarRecusa({ motivo: 'canal desconhecido', canal, body, req })
+    return res.status(200).json({ ok: false, reason: 'canal desconhecido' })
+  }
+  if (!(await confiavel(canal, body, req))) {
+    await anotarRecusa({ motivo: 'sem chave válida e token diferente do aprendido', canal, body, req })
+    return res.status(401).json({ error: 'unauthorized' })
+  }
 
   // O primeiro evento autenticado (inclusive CONNECTION) ensina o token e o servidor
   const pelaChave = igual(String(req.query.s || req.headers['x-webhook-secret'] || ''), chaveWebhook(canal))
