@@ -35,7 +35,7 @@ const CONTRACHEQUE_RENDA_BAIXA = [
   'RUBRICA | 300 | IMP RENDA | D | 600,00',
   'RUBRICA | 501 | EMP CONSIG SANTANDER | D | 2.600,00',
 ].join('\n')
-const ABERTURA = 'Boa tarde! Aqui é a Lia, assistente virtual do escritório Monteiro & Lins, especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
+const ABERTURA = 'Boa tarde! Aqui é a Lia, do escritório Monteiro & Lins, especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
 const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
 /** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */
@@ -49,7 +49,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     msgs: ['oi, vi o anúncio sobre o consignado'],
     checks: [umaPergunta, semFallback, tomHumano],
     criterios: [
-      'Se apresenta como Lia, assistente virtual do escritório Monteiro & Lins',
+      'Se apresenta como Lia, do escritório Monteiro & Lins, sem dizer que é assistente virtual',
       'Apresenta o escritório como de direito bancário ou atuando desde a década de 90 (um dos dois basta)',
       'Não diz que o escritório foi fundado por policial, militar, coronel ou bombeiro',
       'Diz que a análise é gratuita',

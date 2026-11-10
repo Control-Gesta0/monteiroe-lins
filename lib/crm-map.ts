@@ -90,7 +90,7 @@ export const CRM_MAP = {
   textoSeguroFinal: `Obrigada. ${TEXTO_24H}`,
 
   /** Saídas que NÃO são de humano (template de abertura disparado pelo Salesbot): não pausam a IA. */
-  saidasAutomaticas: [/Aqui é a Lia, assistente virtual/i, /em breve enviaremos a sua análise/i] as RegExp[],
+  saidasAutomaticas: [/Aqui é a Lia, assistente virtual/i, /Aqui é a Lia, do escritório Monteiro/i, /em breve enviaremos a sua análise/i] as RegExp[],
 
   /**
    * Robô de recebimento (pedido da Patrícia, 16/10/2026), para os leads que a Lia ainda NÃO atende:
