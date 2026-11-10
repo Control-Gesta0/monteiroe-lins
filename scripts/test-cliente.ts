@@ -3,7 +3,7 @@
  *  1. Réplica da planilha: o código bate com a planilha original recalculada no LibreOffice
  *  2. Regra de qualificação do escritório
  *  3. Leitura da transcrição do contracheque
- *  4. Agenda (quinta o dia todo, terça e quarta à tarde)
+ *  4. Agenda (terça, quarta e quinta, das 15h30 às 17h30)
  *  5. Roteamento: lead novo × quem já é cliente
  *  6. Travas de texto (OAB, margem de 40%)
  *  7. Ferramentas ponta a ponta numa porta em memória
@@ -85,26 +85,26 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const cfg = CRM_MAP.agenda
   const quartaManha = slotDeIso('2026-10-14T10:00', cfg)!.inicio // quarta 14/10, 10h
   const livres = horariosLivres(quartaManha, [], cfg)
-  eq('agenda: começa amanhã (quinta 9h30)', livres[0]?.rotulo, 'quinta (15/10) às 9h30')
-  eq('agenda: duas opções, em dias diferentes', duasOpcoes(livres, cfg).map(s => s.rotulo), ['quinta (15/10) às 9h30', 'terça (20/10) às 14h30'])
-  eq('agenda: nenhuma segunda, sexta ou manhã de terça/quarta', livres.filter(s => /segunda|sexta|sábado|domingo/.test(s.rotulo) || (/terça|quarta/.test(s.rotulo) && Number(s.iso.slice(11, 13)) < 12)).length, 0)
-  eq('agenda: horário ocupado sai da lista', horariosLivres(quartaManha, [livres[0].inicio], cfg)[0]?.rotulo, 'quinta (15/10) às 10h')
+  eq('agenda: começa amanhã (quinta 15h30)', livres[0]?.rotulo, 'quinta (15/10) às 15h30')
+  eq('agenda: duas opções, em dias diferentes', duasOpcoes(livres, cfg).map(s => s.rotulo), ['quinta (15/10) às 15h30', 'terça (20/10) às 15h30'])
+  eq('agenda: nenhuma segunda, sexta, fim de semana ou antes das 15h30', livres.filter(s => /segunda|sexta|sábado|domingo/.test(s.rotulo) || s.iso.slice(11, 16) < '15:30' || s.iso.slice(11, 16) > '17:00').length, 0)
+  eq('agenda: horário ocupado sai da lista', horariosLivres(quartaManha, [livres[0].inicio], cfg)[0]?.rotulo, 'quinta (15/10) às 16h')
   eq('agenda: sexta 10h fora da grade', naGrade(slotDeIso('2026-10-16T10:00', cfg)!, cfg), false)
   eq('agenda: terça 10h fora da grade', naGrade(slotDeIso('2026-10-20T10:00', cfg)!, cfg), false)
-  eq('agenda: terça 14h30 na grade', naGrade(slotDeIso('2026-10-20T14:30', cfg)!, cfg), true)
+  eq('agenda: terça 15h30 e quinta 17h na grade; terça 14h30, quinta 9h30 e 17h30 fora', [naGrade(slotDeIso('2026-10-20T15:30', cfg)!, cfg), naGrade(slotDeIso('2026-10-15T17:00', cfg)!, cfg), naGrade(slotDeIso('2026-10-20T14:30', cfg)!, cfg), naGrade(slotDeIso('2026-10-15T09:30', cfg)!, cfg), naGrade(slotDeIso('2026-10-15T17:30', cfg)!, cfg)], [true, true, false, false, false])
   eq('agenda: horário vira o timestamp do Kommo (BRT)', slotDeIso('2026-10-15T15:30', cfg)!.inicio, Date.parse('2026-10-15T18:30:00Z') / 1000)
-  eq('agenda: segunda rodada não repete as já oferecidas', duasOpcoes(livres, cfg, duasOpcoes(livres, cfg).map(s => s.inicio))[0]?.rotulo, 'quinta (15/10) às 10h')
+  eq('agenda: segunda rodada não repete as já oferecidas', duasOpcoes(livres, cfg, duasOpcoes(livres, cfg).map(s => s.inicio))[0]?.rotulo, 'quinta (15/10) às 16h')
 
-  // Google Agenda: compromisso de 10h às 11h na quinta ocupa 10h e 10h30; evento "disponível" e cancelado não ocupam
+  // Google Agenda: compromisso de 16h às 17h na quinta ocupa 16h e 16h30; evento "disponível" e cancelado não ocupam
   const evts = [
-    { id: 'a', start: { dateTime: '2026-10-15T10:00:00-03:00' }, end: { dateTime: '2026-10-15T11:00:00-03:00' } },
-    { id: 'b', transparency: 'transparent', start: { dateTime: '2026-10-15T14:30:00-03:00' }, end: { dateTime: '2026-10-15T17:00:00-03:00' } },
-    { id: 'c', status: 'cancelled', start: { dateTime: '2026-10-20T14:30:00-03:00' }, end: { dateTime: '2026-10-20T15:00:00-03:00' } },
+    { id: 'a', start: { dateTime: '2026-10-15T16:00:00-03:00' }, end: { dateTime: '2026-10-15T17:00:00-03:00' } },
+    { id: 'b', transparency: 'transparent', start: { dateTime: '2026-10-15T15:30:00-03:00' }, end: { dateTime: '2026-10-15T17:30:00-03:00' } },
+    { id: 'c', status: 'cancelled', start: { dateTime: '2026-10-20T15:30:00-03:00' }, end: { dateTime: '2026-10-20T16:00:00-03:00' } },
     { id: 'd', start: { date: '2026-10-21' }, end: { date: '2026-10-22' } },
   ]
   const ocupG = iniciosOcupadosPorIntervalos(intervalosOcupados(evts), quartaManha, cfg)
   const rot = (xs: number[]) => xs.map(x => horariosLivres(quartaManha, [], cfg).find(s => s.inicio === x)?.rotulo)
-  eq('google: 10h–11h ocupa 10h e 10h30; dia inteiro ocupa a quarta', rot(ocupG), ['quinta (15/10) às 10h', 'quinta (15/10) às 10h30', 'quarta (21/10) às 14h30', 'quarta (21/10) às 15h', 'quarta (21/10) às 15h30', 'quarta (21/10) às 16h', 'quarta (21/10) às 16h30'])
+  eq('google: 16h–17h ocupa 16h e 16h30; dia inteiro ocupa a quarta', rot(ocupG), ['quinta (15/10) às 16h', 'quinta (15/10) às 16h30', 'quarta (21/10) às 15h30', 'quarta (21/10) às 16h', 'quarta (21/10) às 16h30', 'quarta (21/10) às 17h'])
 
   // ---------- 5. Roteamento ----------
   const porta = (t: string) => { const r = rotear({}, t); return r.tipo === 'porta' ? r.porta.id : r.tipo }
@@ -165,7 +165,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   {
     const { w, port } = mundo()
     const out = await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
-    eq('fluxo qualificado: não finaliza e já traz as duas opções de horário', [out.isError, !!out.handoff, /quinta \(15\/10\) às 9h30.*terça \(20\/10\) às 14h30/.test(out.content)], [false, false, true])
+    eq('fluxo qualificado: não finaliza e já traz as duas opções de horário', [out.isError, !!out.handoff, /quinta \(15\/10\) às 15h30.*terça \(20\/10\) às 15h30/.test(out.content)], [false, false, true])
     eq('fluxo qualificado: etapa "lead qualificado"', w.statusId, CRM_MAP.sdr.etapas.qualificado)
     eq('fluxo qualificado: corporação PM RJ pelo órgão', w.fields[CRM_MAP.sdr.campos.corporacao], 598404)
     eq('fluxo qualificado: nota com a análise no card', /Lia · análise do contracheque/.test(w.notes[0] || ''), true)
@@ -173,20 +173,20 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('fluxo qualificado: mesmo contracheque não analisa duas vezes', [w.notes.length, /já foi analisado/.test(repetido.content)], [1, true])
 
     const c1 = await runTool(ctx(port, transcricao), 'consultar_horarios', {})
-    eq('agenda: lead recusou, a próxima rodada oferece outras', /quinta \(15\/10\) às 10h/.test(c1.content) && !/9h30 \[/.test(c1.content.split('Outras')[0]), true)
+    eq('agenda: lead recusou, a próxima rodada oferece outras', /quinta \(15\/10\) às 16h/.test(c1.content) && !/15h30 \[/.test(c1.content.split('Outras')[0]), true)
     let ag = await runTool(ctx(port, `${transcricao}\npode ser sexta às 10h`, 'pode ser sexta às 10h'), 'agendar_reuniao', { data_hora: '2026-10-16T10:00', formato: 'online', evidencia: 'pode ser sexta às 10h' })
     eq('agenda: sexta é recusada', [ag.isError, /não está na agenda/.test(ag.content)], [true, true])
-    ag = await runTool(ctx(port, transcricao, 'ok'), 'agendar_reuniao', { data_hora: '2026-10-15T09:30', formato: 'online', evidencia: 'quinta 9h30 então' })
+    ag = await runTool(ctx(port, transcricao, 'ok'), 'agendar_reuniao', { data_hora: '2026-10-15T15:30', formato: 'online', evidencia: 'quinta 15h30 então' })
     eq('agenda: sem o lead escolher, não agenda', ag.isError, true)
-    w.ocupados.push(slotDeIso('2026-10-15T09:30', cfg)!.inicio)
-    ag = await runTool(ctx(port, `${transcricao}\nquinta 9h30 então`, 'quinta 9h30 então'), 'agendar_reuniao', { data_hora: '2026-10-15T09:30', formato: 'online', evidencia: 'quinta 9h30 então' })
+    w.ocupados.push(slotDeIso('2026-10-15T15:30', cfg)!.inicio)
+    ag = await runTool(ctx(port, `${transcricao}\nquinta 15h30 então`, 'quinta 15h30 então'), 'agendar_reuniao', { data_hora: '2026-10-15T15:30', formato: 'online', evidencia: 'quinta 15h30 então' })
     eq('agenda: horário que outro lead pegou é recusado', [ag.isError, /acabou de ser ocupado/.test(ag.content)], [true, true])
-    ag = await runTool(ctx(port, `${transcricao}\nquinta 10h presencial`, 'quinta 10h presencial'), 'agendar_reuniao', { data_hora: '2026-10-15T10:00', formato: 'presencial', evidencia: 'quinta 10h presencial' })
+    ag = await runTool(ctx(port, `${transcricao}\nquinta 16h presencial`, 'quinta 16h presencial'), 'agendar_reuniao', { data_hora: '2026-10-15T16:00', formato: 'presencial', evidencia: 'quinta 16h presencial' })
     // Mesmo se o modelo mandar "presencial", a reunião sai online (pedido do escritório, 10/11/2026)
-    eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 10h, por videochamada aqui no WhatsApp. Até lá!'])
-    eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T10:00', cfg)!.inicio, slotDeIso('2026-10-15T10:30', cfg)!.inicio]])
-    eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T10:00', cfg)!.inicio)
-    eq('agenda: tarefa de reunião no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T10:00', cfg)!.inicio)
+    eq('agenda: marca, confirma pelo código e encerra', [ag.isError, ag.handoff, ag.textoFinal], [false, true, 'Fechado: quinta (15/10) às 16h, por videochamada aqui no WhatsApp. Até lá!'])
+    eq('agenda: evento de 30 min criado na Google Agenda', w.eventos, [[slotDeIso('2026-10-15T16:00', cfg)!.inicio, slotDeIso('2026-10-15T16:30', cfg)!.inicio]])
+    eq('agenda: campo Agendamento = timestamp do horário', w.fields[CRM_MAP.sdr.campos.agendamento], slotDeIso('2026-10-15T16:00', cfg)!.inicio)
+    eq('agenda: tarefa de reunião no horário', w.tasks.find(t => t.typeId === CRM_MAP.sdr.tarefas.tipoAgendamento)?.completeTill, slotDeIso('2026-10-15T16:00', cfg)!.inicio)
     eq('agenda: etapa Reunião Agendada e IA desligada', [w.statusId, w.tags.has('lia'), w.state.finalizado?.motivo], [CRM_MAP.sdr.etapas.agendada, false, 'agendou'])
   }
   {

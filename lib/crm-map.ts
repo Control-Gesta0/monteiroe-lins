@@ -167,12 +167,12 @@ export const CRM_MAP = {
   agenda: {
     offsetUtc: '-03:00',
     duracaoMin: 30,
-    // Quinta o dia todo; terça e quarta só à tarde (definido pelo escritório em 14/10/2026).
+    // Terça, quarta e quinta, das 15h30 às 17h30 (definido pelo escritório em 10/11/2026; antes: quinta o dia todo, terça e quarta à tarde).
     // Horários tirados das 176 reuniões já marcadas no CRM. Trocar quando a agenda real for ligada.
     grade: {
-      2: ['14:30', '15:00', '15:30', '16:00', '16:30'],
-      3: ['14:30', '15:00', '15:30', '16:00', '16:30'],
-      4: ['09:30', '10:00', '10:30', '11:00', '14:30', '15:00', '15:30', '16:00', '16:30'],
+      2: ['15:30', '16:00', '16:30', '17:00'],
+      3: ['15:30', '16:00', '16:30', '17:00'],
+      4: ['15:30', '16:00', '16:30', '17:00'],
     },
     diasAFrente: 10,
     aPartirDeAmanha: true,

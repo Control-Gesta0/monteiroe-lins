@@ -126,7 +126,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     msgs: ['pode ser sexta de manhã?'],
     checks: [umaPergunta, semFallback, tomHumano, naoUsou('agendar_reuniao'), usou('consultar_horarios'), comDiaDaSemana, { nome: 'não oferece sexta', fn: (_w: World, t: T) => !/sexta \(\d/.test(t[0].resposta) }],
     criterios: [
-      'Diz em que dias e turnos há reunião (terça e quarta à tarde, quinta o dia todo); quinta de manhã é um horário válido',
+      'Diz em que dias e horários há reunião (terça, quarta e quinta, das 15h30 às 17h30) e oferece horários nesses dias',
       'Oferece duas opções concretas (dia e hora) em dias válidos no lugar',
     ],
   },

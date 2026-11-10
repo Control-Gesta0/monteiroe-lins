@@ -380,7 +380,7 @@ async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
   if (state.analise?.decisao !== 'qualificado') return err('Só ofereça horário depois que analisar_contracheque devolver QUALIFICADO.')
   const { opcoes, reserva } = await escolherOpcoes(ctx)
   if (!opcoes.length) return err('Não há horário livre nos próximos dias. Diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano) com a fala do lead como evidência.')
-  return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: quinta o dia todo, terça e quarta só à tarde.`)
+  return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: terça, quarta e quinta, das 15h30 às 17h30.`)
 }
 
 /**
@@ -404,7 +404,7 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   if (!escolheuHorario(ctx.lastLeadText, Boolean(state.ofertados?.length))) return err('O lead topou a reunião mas ainda não escolheu dia e hora. Chame consultar_horarios e ofereça as duas opções, com dia e hora.')
   const slot = slotDeIso(String(input.data_hora || ''), cfg)
   if (!slot) return err('data_hora inválida. Use AAAA-MM-DDTHH:MM, horário de Brasília.')
-  if (!naGrade(slot, cfg)) return err(`${slot.rotulo} não está na agenda (quinta o dia todo, terça e quarta só à tarde). Chame consultar_horarios e ofereça as opções válidas.`)
+  if (!naGrade(slot, cfg)) return err(`${slot.rotulo} não está na agenda (terça, quarta e quinta, das 15h30 às 17h30). Chame consultar_horarios e ofereça as opções válidas.`)
   if (slot.inicio < port.agoraS() + 3600) return err('Esse horário já passou ou é muito em cima. Ofereça outro com consultar_horarios.')
   if (ocupado(slot, await port.horariosOcupados(), cfg) || !(await port.reservarHorario(slot.inicio))) {
     return err(`${slot.rotulo} acabou de ser ocupado. Peça desculpas e chame consultar_horarios para oferecer outros.`)
