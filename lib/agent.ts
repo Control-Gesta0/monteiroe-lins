@@ -11,7 +11,8 @@ import { baseVigente } from './base'
 import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
-import { aplicarFinalizacao, moverSdr, type ToolCtx } from './tools'
+import { aplicarFinalizacao, entregarResultado, moverSdr, type ToolCtx } from './tools'
+import { k, redis } from './redis'
 import { agendarCobrancas, cobrancaLigada } from './cobranca'
 import { CRM_MAP } from './crm-map'
 import { sendReply } from './transport'
@@ -126,7 +127,23 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
         return
       }
 
-      // 3. Cérebro
+      // 3. Resultado guardado esperando a resposta sobre as outras dívidas: a resposta chegou, sai o resultado (sem LLM)
+      const pend = (await getState(leadId)).pendente
+      if (pend && porta.id === 'superendividamento') {
+        await markAnswered(leadId, target.id)
+        // Um resultado, uma entrega: a fila do prazo (api/resultado) pode estar entregando agora
+        if ((await redis.set(k('entrega', leadId, pend.em), 1, { nx: true, ex: 86400 })) !== 'OK') return
+        const r = await entregarResultado(ctx, textoTurno)
+        if (!r) return
+        const detail = await enviar(leadId, r.texto)
+        await logExec({
+          tipo: r.handoff ? 'finalizou' : 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0, tools: ['resultado:depois-das-dividas', 'trava:texto-aprovado'],
+          detalhe: detail, decisao: r.decisao, perfil: 'nao_cliente', turnoLead: textoTurno, respostaIA: r.texto,
+        })
+        return
+      }
+
+      // 4. Cérebro
       const primeiroContatoDaPorta = !conversa.some(m => m.dir === 'out')
       const brain = createBrain({ apiKey: CONFIG.openaiApiKey, model: CONFIG.llmModel, promptOverride: base.prompts })
       const reply = await brain.generateReply(ctx, { nomeContato: nome, primeiroContatoDaPorta }, conversa)

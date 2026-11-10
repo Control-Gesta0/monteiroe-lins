@@ -46,6 +46,10 @@
     "api/lead-novo.ts": {
       "maxDuration": 120,
       "includeFiles": "prompts/**"
+    },
+    "api/resultado.ts": {
+      "maxDuration": 120,
+      "includeFiles": "prompts/**"
     }
   }
 }

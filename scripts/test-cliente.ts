@@ -414,5 +414,28 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     escolheuHorario('quanto custa a reunião?', true), escolheuHorario('pode ser na terça', false),
   ], [false, false, true, true, true, false, true, false, true])
 
+  // ---------- 16. Contracheque: pergunta das outras dívidas antes do resultado ----------
+  {
+    const { entregarResultado } = await import('../lib/tools')
+    const { w, port } = mundo()
+    const agendadas: number[] = []
+    port.agendarEntrega = async em => { agendadas.push(em); return true }
+    const a = await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
+    eq('dívidas: lido o contracheque, sai a pergunta e o resultado fica guardado', [a.isError, !!a.handoff, /outras dívidas fora do contracheque/.test(a.textoFinal || ''), w.state.pendente?.decisao, agendadas.length, w.statusId],
+      [false, false, true, 'qualificado', 1, CRM_MAP.sdr.etapas.qualificacao])
+    const r = await entregarResultado(ctx(port, transcricao), 'tenho cartão de crédito de uns 5 mil')
+    eq('dívidas: a resposta vira nota e o resultado sai com os horários', [/^Obrigada, vou deixar anotado para o advogado\.\n\n/.test(r?.texto || ''), /quinta \(15\/10\) às 15h30/.test(r?.texto || ''), w.notes.some(n => /cartão de crédito de uns 5 mil/.test(n)), w.statusId, w.state.pendente],
+      [true, true, true, CRM_MAP.sdr.etapas.qualificado, undefined])
+    eq('dívidas: sem nada pendente, não entrega de novo', await entregarResultado(ctx(port, transcricao), 'oi'), null)
+  }
+  {
+    const { entregarResultado } = await import('../lib/tools')
+    const { w, port } = mundo()
+    port.agendarEntrega = async () => true
+    await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
+    const r = await entregarResultado(ctx(port, transcricao))
+    eq('dívidas: prazo acabou sem resposta, o resultado sai sem o "obrigada" e fica anotado', [/^Obrigada/.test(r?.texto || ''), /quinta \(15\/10\)/.test(r?.texto || ''), w.notes.some(n => /não respondeu sobre outras dívidas/.test(n))], [false, true, true])
+  }
+
   return 0
 }
