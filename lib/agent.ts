@@ -11,10 +11,9 @@ import { baseVigente } from './base'
 import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
-import { aplicarFinalizacao, entregarResultado, moverSdr, type ToolCtx } from './tools'
-import { comNome, primeiroNome } from './base-core'
+import { aplicarFinalizacao, moverSdr, type ToolCtx } from './tools'
+import { comNome, PADRAO_CODIGO, primeiroNome } from './base-core'
 import { semInvisiveis } from './stevo'
-import { k, redis } from './redis'
 import { agendarCobrancas, cobrancaLigada } from './cobranca'
 import { CRM_MAP } from './crm-map'
 import { sendReply } from './transport'
@@ -129,23 +128,7 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
         return
       }
 
-      // 3. Resultado guardado esperando a resposta sobre as outras dívidas: a resposta chegou, sai o resultado (sem LLM)
-      const pend = (await getState(leadId)).pendente
-      if (pend && porta.id === 'superendividamento') {
-        await markAnswered(leadId, target.id)
-        // Um resultado, uma entrega: a fila do prazo (api/resultado) pode estar entregando agora
-        if ((await redis.set(k('entrega', leadId, pend.em), 1, { nx: true, ex: 86400 })) !== 'OK') return
-        const r = await entregarResultado(ctx, textoTurno)
-        if (!r) return
-        const detail = await enviar(leadId, r.texto)
-        await logExec({
-          tipo: r.handoff ? 'finalizou' : 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0, tools: ['resultado:depois-das-dividas', 'trava:texto-aprovado'],
-          detalhe: detail, decisao: r.decisao, perfil: 'nao_cliente', turnoLead: textoTurno, respostaIA: r.texto,
-        })
-        return
-      }
-
-      // 4. Mensagem pronta do anúncio como primeira mensagem: abertura aprovada, sem LLM (não é pedido de pessoa)
+      // 3. Mensagem pronta do anúncio como primeira mensagem: abertura aprovada, sem LLM (não é pedido de pessoa)
       const textoLimpo = semInvisiveis(textoTurno)
       if (porta.id === 'superendividamento' && !conversa.some(m => m.dir === 'out') && CRM_MAP.mensagensDeAnuncio.some(re => re.test(textoLimpo))) {
         const texto = comNome(base.textos.abertura, primeiroNome(nome))
@@ -162,7 +145,7 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
         return
       }
 
-      // 5. Cérebro
+      // 4. Cérebro
       const primeiroContatoDaPorta = !conversa.some(m => m.dir === 'out')
       const brain = createBrain({ apiKey: CONFIG.openaiApiKey, model: CONFIG.llmModel, promptOverride: base.prompts })
       const reply = await brain.generateReply(ctx, { nomeContato: nome, primeiroContatoDaPorta }, conversa)
@@ -182,6 +165,12 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       const detail = await enviar(leadId, reply.text)
       await markAnswered(leadId, target.id)
+      // Pedido do escritório (11/11/2026): saiu o resultado da análise, então a pergunta das outras dívidas, em mensagem separada
+      const aposAnalise = await getState(leadId)
+      if (CONFIG.perguntarDividas && porta.id === 'superendividamento' && reply.toolsUsed.includes('analisar_contracheque') && aposAnalise.analise && !aposAnalise.dividasPerguntadas) {
+        await enviar(leadId, base.textos.pergunta_dividas ?? PADRAO_CODIGO.pergunta_dividas!)
+        await patchState(leadId, { dividasPerguntadas: Date.now() })
+      }
       // Primeira resposta da IA a um lead de entrada (ou que voltou do "follow - não responde"): Qualificação (fail-closed)
       if (!reply.handoff && porta.id === 'superendividamento') {
         const l = await port.getLead()

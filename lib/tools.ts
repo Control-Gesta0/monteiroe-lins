@@ -34,8 +34,6 @@ export interface LeadPort {
   /** cria o evento na Google Agenda; devolve o id, ou null se a agenda não está ligada */
   criarEventoAgenda(inicio: number, fim: number, titulo: string, descricao: string, local?: string): Promise<string | null>
   agoraS(): number
-  /** agenda a entrega do resultado guardado (fila com atraso); false = não deu, entrega na hora */
-  agendarEntrega?(em: number): Promise<boolean>
   /** nome e telefone do cliente (só dígitos, com DDI), para o evento da agenda */
   contato?(): Promise<{ nome: string; telefone: string }>
   getState(): Promise<LeadState>
@@ -58,7 +56,7 @@ export interface ToolCtx {
   nome?: string
 }
 
-const texto = (ctx: ToolCtx, id: 'enc_renda_abaixo' | 'enc_alivio_baixo' | 'enc_revisao' | 'enc_atendimento' | 'recebido') => ctx.textos?.[id] ?? PADRAO_CODIGO[id]!
+const texto = (ctx: ToolCtx, id: 'enc_renda_abaixo' | 'enc_alivio_baixo' | 'enc_revisao' | 'enc_atendimento') => ctx.textos?.[id] ?? PADRAO_CODIGO[id]!
 
 export interface ToolOutcome {
   content: string
@@ -331,17 +329,6 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
 
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
   const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal }
-
-  // Pedido do escritório (10/11/2026): antes do resultado, a Lia pergunta das dívidas fora do contracheque.
-  // O resultado fica guardado e sai quando o lead responde (agent.ts) ou depois do prazo (api/resultado.ts).
-  if (CONFIG.perguntarDividas && port.agendarEntrega) {
-    const em = Date.now()
-    await port.patchState({ pendente: { ...decisao, em } })
-    if (await port.agendarEntrega(em).catch(() => false)) {
-      return ok('Contracheque lido. O sistema já agradece e pergunta das outras dívidas; o resultado sai depois. Não fale do resultado agora.', { textoFinal: texto(ctx, 'recebido') })
-    }
-    await port.patchState({ pendente: undefined })
-  }
   return aplicarDecisao(ctx, decisao)
 }
 
@@ -381,27 +368,6 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
       await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
       return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: texto(ctx, 'enc_revisao') })
   }
-}
-
-/**
- * Entrega o resultado guardado (state.pendente). `respostaLead`: o que o lead respondeu sobre as
- * outras dívidas (vira nota no card); sem ela, o prazo acabou e o resultado sai sem a resposta.
- * Devolve a mensagem a enviar; null se não havia resultado pendente.
- */
-export async function entregarResultado(ctx: ToolCtx, respostaLead?: string): Promise<{ texto: string; handoff: boolean; decisao: string } | null> {
-  const { port } = ctx
-  const p = (await port.getState()).pendente
-  if (!p) return null
-  await port.patchState({ pendente: undefined })
-  await port.addNote(respostaLead
-    ? `🤖 Lia · outras dívidas (fora do contracheque), nas palavras do lead:\n"${respostaLead.trim().slice(0, 1500)}"`
-    : '🤖 Lia · o lead não respondeu sobre outras dívidas fora do contracheque (o resultado saiu depois do prazo).')
-  const out = await aplicarDecisao(ctx, p)
-  // Sem texto pronto (agenda fora do ar ou sem horário livre): números do resultado e a equipe propõe o horário
-  const texto = out.textoFinal || `Já tenho o resultado da sua análise: a sua renda está comprometida em *${pct(p.comprometimento)}* com os consignados, e com a ação de readequação de margem é possível reduzir cerca de *${brl(p.reducaoMensal)}* por mês. A nossa equipe vai te propor o horário da reunião por aqui em até 24 horas.`
-  if (!out.textoFinal && !(await port.getState()).finalizado) await aplicarFinalizacao(ctx, 'pediu_humano', 'Lead qualificado; sem horário para oferecer. Propor horário ao lead.')
-  const obrigada = p.decisao === 'qualificado' ? 'Obrigada, vou deixar anotado para o advogado.' : 'Obrigada pela informação.'
-  return { texto: respostaLead ? `${obrigada}\n\n${texto}` : texto, handoff: Boolean(out.handoff || !out.textoFinal), decisao: p.decisao }
 }
 
 /** Agenda fora do ar (Kommo ou Google): a Lia não chuta horário, a equipe propõe em até 24h. */

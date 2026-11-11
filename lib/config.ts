@@ -65,10 +65,8 @@ export const CONFIG = {
   qstashToken: process.env.QSTASH_TOKEN || '',
   /** > 0: nos leads de TEST_LEAD_IDS os lembretes saem a cada N minutos (para testar sem esperar) */
   cobrancaTesteMinutos: Number(process.env.COBRANCA_TESTE_MINUTOS || 0),
-  /** Antes do resultado, pergunta das dívidas fora do contracheque (PERGUNTAR_DIVIDAS=0 desliga) */
+  /** Depois do resultado, pergunta das dívidas fora do contracheque (PERGUNTAR_DIVIDAS=0 desliga) */
   perguntarDividas: (process.env.PERGUNTAR_DIVIDAS || '1') !== '0',
-  /** minutos que o resultado espera a resposta do lead antes de sair sozinho */
-  resultadoEsperaMin: Number(process.env.RESULTADO_ESPERA_MIN || 5),
 
   // Painel de gestão (/api/painel): a chave do escritório (só vê o painel)
   painelSecret: process.env.PAINEL_SECRET || '',

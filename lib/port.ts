@@ -6,7 +6,6 @@ import { criarEvento, googleAtivo, intervalosOcupados, listarEventos } from './g
 import { getState, patchState } from './state'
 import { kommoGet } from './kommo'
 import { rotaDoLead } from './stevo-conversa'
-import { agendarEntrega } from './resultado'
 import type { LeadPort, LeadView } from './tools'
 
 /** Porta de produção: Kommo + Redis. Relê o lead depois de toda escrita. */
@@ -68,7 +67,6 @@ export function kommoPort(leadId: number): LeadPort {
       return criarEvento({ inicioS: inicio, fimS: fim, titulo, descricao, local })
     },
     agoraS: () => Math.floor(Date.now() / 1000),
-    agendarEntrega: (em: number) => agendarEntrega(leadId, em),
     async contato() {
       // Telefone: o número da conversa na Stevo; sem ela, o telefone do contato no Kommo
       const lead = await getLead(leadId)

@@ -6,7 +6,8 @@ import { CANAIS } from '../lib/canais'
 import { CONFIG } from '../lib/config'
 import { logExec } from '../lib/execlog'
 import { appendMessage, isEchoOfSent, markHumanSpoke } from '../lib/history'
-import { getLead, leadTags } from '../lib/kommo'
+import { addLeadNote, getLead, leadTags } from '../lib/kommo'
+import { getState, patchState } from '../lib/state'
 import { bytesToText, type MediaKind } from '../lib/media'
 import { baixarMidia, apikeyDe, aprenderInstancia, chaveWebhook, lerEvento, type EventoStevo } from '../lib/stevo'
 import { cardDaConversa } from '../lib/stevo-card'
@@ -97,6 +98,7 @@ async function atender(e: EventoStevo, webhookId: string): Promise<void> {
     const lia = !CONFIG.gateTag || leadTags(lead).map(t => t.toLowerCase()).includes(CONFIG.gateTag)
     const texto = await textoDaMensagem(e, lia)
     await appendMessage(leadId, { id: `stevo:${e.id}`, dir: 'in', text: texto, ts: Date.parse(e.quando) || Date.now() })
+    await anotarDividas(leadId, texto)
     await processLead(leadId, webhookId)
   } catch (err) {
     console.error(`[canal-hint] falha atendendo ${e.canal}:`, err)
@@ -118,6 +120,17 @@ async function anotarRecusa(r: { motivo: string; canal: string; body: Record<str
     await redis.ltrim(chave, 0, 29)
     await redis.expire(chave, 3 * 86400)
   } catch (e) { console.error('[canal-hint] falha anotando recusa:', e) }
+}
+
+/**
+ * Primeira resposta do lead depois da pergunta das outras dívidas: vira nota no card, para o advogado.
+ * Vale também quando a Lia já encerrou (desqualificado ou revisão): a equipe lê no card.
+ */
+async function anotarDividas(leadId: number, texto: string): Promise<void> {
+  const st = await getState(leadId)
+  if (!st.dividasPerguntadas || st.dividasAnotadas || Date.now() - st.dividasPerguntadas > 3 * 86400_000) return
+  await patchState(leadId, { dividasAnotadas: true })
+  await addLeadNote(leadId, `🤖 Lia · outras dívidas (fora do contracheque). Primeira resposta do lead depois da pergunta:\n"${texto.slice(0, 1500)}"`)
 }
 
 /** Mensagem de conversa que o lerEvento descartou (ex.: @lid sem número): guarda o resumo das últimas 30 para diagnóstico. */

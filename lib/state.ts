@@ -30,8 +30,9 @@ export interface LeadState {
   ofertados?: number[]
   /** quando (ms) a Lia pediu o contracheque pela última vez: só os lembretes dessa cadeia valem */
   cobrancaDesde?: number
-  /** contracheque analisado, resultado guardado enquanto a Lia pergunta das dívidas fora do contracheque */
-  pendente?: { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; em: number }
+  /** quando (ms) a Lia perguntou das dívidas fora do contracheque (depois do resultado); a próxima resposta do lead vira nota */
+  dividasPerguntadas?: number
+  dividasAnotadas?: boolean
 }
 
 const TTL = 90 * 86400
