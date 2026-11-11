@@ -12,6 +12,8 @@ import { kommoPort } from './port'
 import { rotear } from './router'
 import { clearState, getState, patchState } from './state'
 import { aplicarFinalizacao, entregarResultado, moverSdr, type ToolCtx } from './tools'
+import { comNome, primeiroNome } from './base-core'
+import { semInvisiveis } from './stevo'
 import { k, redis } from './redis'
 import { agendarCobrancas, cobrancaLigada } from './cobranca'
 import { CRM_MAP } from './crm-map'
@@ -143,7 +145,24 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
         return
       }
 
-      // 4. Cérebro
+      // 4. Mensagem pronta do anúncio como primeira mensagem: abertura aprovada, sem LLM (não é pedido de pessoa)
+      const textoLimpo = semInvisiveis(textoTurno)
+      if (porta.id === 'superendividamento' && !conversa.some(m => m.dir === 'out') && CRM_MAP.mensagensDeAnuncio.some(re => re.test(textoLimpo))) {
+        const texto = comNome(base.textos.abertura, primeiroNome(nome))
+        const detail = await enviar(leadId, texto)
+        await markAnswered(leadId, target.id)
+        const l = await port.getLead()
+        if (l.statusId === CRM_MAP.sdr.etapas.entrada || l.statusId === CRM_MAP.sdr.etapas.semResposta) await moverSdr(port, CRM_MAP.sdr.etapas.qualificacao)
+        if (cobrancaLigada()) {
+          const desde = Date.now()
+          await patchState(leadId, { cobrancaDesde: desde })
+          await agendarCobrancas(leadId, desde).catch(e => console.error(`[cobranca] lead ${leadId}: não agendei os lembretes`, e))
+        }
+        await logExec({ tipo: 'resposta', leadId, nome, porta: porta.id, ms: Date.now() - t0, tools: ['trava:abertura-anuncio'], detalhe: detail, perfil: 'nao_cliente', turnoLead: textoLimpo, respostaIA: texto })
+        return
+      }
+
+      // 5. Cérebro
       const primeiroContatoDaPorta = !conversa.some(m => m.dir === 'out')
       const brain = createBrain({ apiKey: CONFIG.openaiApiKey, model: CONFIG.llmModel, promptOverride: base.prompts })
       const reply = await brain.generateReply(ctx, { nomeContato: nome, primeiroContatoDaPorta }, conversa)

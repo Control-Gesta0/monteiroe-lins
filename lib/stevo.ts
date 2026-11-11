@@ -163,6 +163,9 @@ const MIDIAS: Array<[string, TipoMidia]> = [
  * Lê o webhook. null para o que não é conversa de 1 a 1 (grupo, status, reação,
  * recibo, apagar, conexão) ou quando não dá para saber o telefone.
  */
+/** Caracteres invisíveis (zero-width) que alguns links de anúncio escondem no texto pronto da mensagem. */
+export const semInvisiveis = (t: string) => t.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g, '')
+
 export function lerEvento(canal: string, corpo: Record<string, any>): EventoStevo | null {
   const evento = s(corpo?.event)
   if (evento && evento !== 'Message' && evento !== 'SendMessage') return null
@@ -205,7 +208,7 @@ export function lerEvento(canal: string, corpo: Record<string, any>): EventoStev
   const ts = s(info.Timestamp)
   const quando = ts && !Number.isNaN(Date.parse(ts)) ? new Date(ts).toISOString() : new Date().toISOString()
   return {
-    canal, id: s(info.ID), fone, deMim, nome: deMim ? '' : s(info.PushName), quando, texto: texto.trim(), midia,
+    canal, id: s(info.ID), fone, deMim, nome: deMim ? '' : s(info.PushName), quando, texto: semInvisiveis(texto).trim(), midia,
     ...(d.referral && typeof d.referral === 'object' ? { origem: d.referral as Record<string, unknown> } : {}),
   }
 }

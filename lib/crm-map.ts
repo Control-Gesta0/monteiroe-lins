@@ -89,6 +89,14 @@ export const CRM_MAP = {
   textoSeguro: 'Entendi. Essa parte o advogado avalia com você na reunião. Me manda o seu último contracheque pra eu fazer a análise?',
   textoSeguroFinal: `Obrigada. ${TEXTO_24H}`,
 
+  /**
+   * Texto pronto do botão do anúncio (clique para o WhatsApp). É o começo da conversa, não um pedido
+   * para falar com uma pessoa: a Lia responde com a abertura (visto em 10/11/2026, leads de 06h33 e 23h39).
+   */
+  mensagensDeAnuncio: [
+    /^\s*(?:ol[áa]|oi|bom dia|boa tarde|boa noite)?[\s,!.]*(?:eu\s+)?gostaria de falar com (?:um |uma )?advogad[oa](?: especialista)?[\s.!]*$/i,
+  ] as RegExp[],
+
   /** Saídas que NÃO são de humano (template de abertura disparado pelo Salesbot): não pausam a IA. */
   saidasAutomaticas: [/Aqui é a Lia, assistente virtual/i, /Aqui é a Lia, do escritório Monteiro/i, /em breve enviaremos a sua análise/i] as RegExp[],
 

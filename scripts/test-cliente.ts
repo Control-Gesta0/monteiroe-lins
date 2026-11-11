@@ -437,5 +437,15 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('dívidas: prazo acabou sem resposta, o resultado sai sem o "obrigada" e fica anotado', [/^Obrigada/.test(r?.texto || ''), /quinta \(15\/10\)/.test(r?.texto || ''), w.notes.some(n => /não respondeu sobre outras dívidas/.test(n))], [false, true, true])
   }
 
+  // ---------- 17. Mensagem pronta do anúncio ----------
+  {
+    const { semInvisiveis } = await import('../lib/stevo')
+    const anuncio = 'Olá, eu gostaria de falar c\uFEFF\u200C\u200C\u200B\u200B\u2060om um advogado especialista'
+    const casa = (t: string) => CRM_MAP.mensagensDeAnuncio.some(re => re.test(semInvisiveis(t)))
+    eq('anúncio: texto pronto (com caracteres invisíveis) é começo de conversa; pedido de verdade não', [
+      semInvisiveis(anuncio), casa(anuncio), casa('Oi, gostaria de falar com uma advogada.'), casa('gostaria de falar com um advogado sobre o meu processo'), casa('quero falar com uma pessoa'),
+    ], ['Olá, eu gostaria de falar com um advogado especialista', true, true, false, false])
+  }
+
   return 0
 }
