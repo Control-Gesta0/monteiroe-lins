@@ -67,6 +67,8 @@ export const CONFIG = {
   cobrancaTesteMinutos: Number(process.env.COBRANCA_TESTE_MINUTOS || 0),
   /** Depois do resultado, pergunta das dívidas fora do contracheque (PERGUNTAR_DIVIDAS=0 desliga) */
   perguntarDividas: (process.env.PERGUNTAR_DIVIDAS || '1') !== '0',
+  /** Imagem da análise no WhatsApp: "todos" ou lista de IDs de lead (teste). Vazio = desligado. */
+  imagemAnalise: (process.env.IMAGEM_ANALISE || '').trim().toLowerCase(),
 
   // Painel de gestão (/api/painel): a chave do escritório (só vê o painel)
   painelSecret: process.env.PAINEL_SECRET || '',

@@ -25,7 +25,11 @@ export interface LeadState {
   outroAssunto?: string
   finalizado?: { motivo: string; em: string; resumo: string }
   /** Monteiro & Lins: resultado da análise do contracheque (feita em código) */
-  analise?: { decisao: string; comprometimento: number; reducaoMensal: number; competencia: string; assinatura: string; em: string }
+  analise?: {
+    decisao: string; comprometimento: number; reducaoMensal: number; competencia: string; assinatura: string; em: string
+    /** para a imagem da análise (desde 11/11/2026) */
+    orgao?: string; bruta?: number; obrigatorios?: number; emprestimo?: number; cartaoConsignado?: number; cartaoBeneficio?: number
+  }
   /** horários (epoch s) já oferecidos ao lead: o próximo consultar_horarios oferece outros */
   ofertados?: number[]
   /** quando (ms) a Lia pediu o contracheque pela última vez: só os lembretes dessa cadeia valem */
@@ -33,6 +37,8 @@ export interface LeadState {
   /** quando (ms) a Lia perguntou das dívidas fora do contracheque (depois do resultado); a próxima resposta do lead vira nota */
   dividasPerguntadas?: number
   dividasAnotadas?: boolean
+  /** assinatura do contracheque cuja imagem da análise já foi enviada */
+  imagemEnviada?: string
 }
 
 const TTL = 90 * 86400

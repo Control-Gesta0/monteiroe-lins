@@ -322,7 +322,11 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
     r = { ...r, decisao: 'revisao_humana', motivo: `valores ilegíveis: ${lido.ilegiveis.join(', ')}` }
   }
 
-  await port.patchState({ analise: { decisao: r.decisao, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, competencia: lido.competencia, assinatura, em: new Date().toISOString() } })
+  const t = r.totais
+  await port.patchState({ analise: {
+    decisao: r.decisao, comprometimento: t.comprometimento, reducaoMensal: r.reducaoMensal, competencia: lido.competencia, assinatura, em: new Date().toISOString(),
+    orgao: lido.orgao, bruta: t.rendaBruta, obrigatorios: t.descontosObrigatorios, emprestimo: t.emprestimoConsignado, cartaoConsignado: t.cartaoConsignado, cartaoBeneficio: t.cartaoBeneficio,
+  } })
   await port.addNote(`🤖 Lia · análise do contracheque ${lido.orgao} ${lido.competencia}\n${r.observacao}${lido.ilegiveis.length ? `\nIlegíveis: ${lido.ilegiveis.join(', ')}` : ''}`)
   const corp = sdr.corporacaoPorOrgao.find(c => c.re.test(lido.orgao))
   if (corp) await port.writeFields([{ field_id: sdr.campos.corporacao, values: [{ enum_id: corp.enumId }] }])

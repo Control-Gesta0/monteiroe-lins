@@ -432,5 +432,16 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     ], ['Olá, eu gostaria de falar com um advogado especialista', true, true, false, false])
   }
 
+  // ---------- 18. Imagem da análise ----------
+  {
+    const im = await import('../lib/imagem-analise')
+    const svg = im.svgDaAnalise({ nome: 'Carlos', orgao: 'Amapá Previdência', competencia: '10/2026', bruta: 26494.09, obrigatorios: 9483.56, emprestimo: 9214.04, cartaoConsignado: 1151.85, cartaoBeneficio: 1151.86, limite: 0.4 }, 'eA==')
+    eq('imagem: números da análise (com o IR corrigido)', ['67,7%', 'R$ 4.713,54', 'R$ 17.010,53', 'R$ 6.804,21', 'R$ 5.492,78', 'Carlos, este é o resultado'].map(t => svg.includes(t)), [true, true, true, true, true, true])
+    eq('imagem: moeda sem depender do servidor', [im.brl(1234567.891), im.brl(0.5), im.pct(0.6770953)], ['R$ 1.234.567,89', 'R$ 0,50', '67,7%'])
+    eq('imagem: sem cartão benefício, a fatia some; texto escapado', [svgSemCb().includes('Cartão benefício'), svgSemCb().includes('A&amp;B')], [false, true])
+    eq('imagem: desligada por padrão', im.imagemLigada(22389918), false)
+    function svgSemCb() { return im.svgDaAnalise({ nome: 'A&B', orgao: 'PMERJ', competencia: '09/2026', bruta: 11600, obrigatorios: 3336.83, emprestimo: 4510.9, cartaoConsignado: 412.2, cartaoBeneficio: 0, limite: 0.4 }, 'eA==') }
+  }
+
   return 0
 }

@@ -97,6 +97,12 @@ export async function enviarTexto(canal: string, fone: string, texto: string): P
   return r.data?.Info?.ID || ''
 }
 
+/** Envia imagem por URL pública (a Stevo baixa e manda); devolve o ID da mensagem. */
+export async function enviarImagem(canal: string, fone: string, url: string, legenda = ''): Promise<string> {
+  const r = await stevo<RespostaEnvio>(canal, '/send/media', { number: fone.replace(/\D/g, ''), type: 'image', url, caption: legenda, filename: 'analise.png' })
+  return r.data?.Info?.ID || ''
+}
+
 /** Baixa (e decifra) a mídia recebida. `mensagem` é o data.Message do webhook. */
 export async function baixarMidia(canal: string, mensagem: Record<string, unknown>): Promise<{ bytes: Buffer; mime: string } | null> {
   const r = await stevo<{ data?: { base64?: string } }>(canal, '/message/downloadmedia', { message: mensagem })

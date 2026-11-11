@@ -14,6 +14,7 @@ import { clearState, getState, patchState } from './state'
 import { aplicarFinalizacao, moverSdr, type ToolCtx } from './tools'
 import { comNome, PADRAO_CODIGO, primeiroNome } from './base-core'
 import { semInvisiveis } from './stevo'
+import { enviarImagemAnalise, imagemLigada } from './imagem-analise'
 import { agendarCobrancas, cobrancaLigada } from './cobranca'
 import { CRM_MAP } from './crm-map'
 import { sendReply } from './transport'
@@ -167,6 +168,12 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
       await markAnswered(leadId, target.id)
       // Pedido do escritório (11/11/2026): saiu o resultado da análise, então a pergunta das outras dívidas, em mensagem separada
       const aposAnalise = await getState(leadId)
+      // Teste (11/11/2026): imagem com o resumo da análise, só para os leads de IMAGEM_ANALISE
+      const an = aposAnalise.analise
+      if (an?.decisao === 'qualificado' && an.bruta !== undefined && reply.toolsUsed.includes('analisar_contracheque') && aposAnalise.imagemEnviada !== an.assinatura && imagemLigada(leadId)) {
+        await patchState(leadId, { imagemEnviada: an.assinatura })
+        await enviarImagemAnalise(leadId).catch(e => logExec({ tipo: 'erro', leadId, nome, porta: porta.id, detalhe: `imagem da análise: ${(e instanceof Error ? e.message : String(e)).slice(0, 200)}` }))
+      }
       if (CONFIG.perguntarDividas && porta.id === 'superendividamento' && reply.toolsUsed.includes('analisar_contracheque') && aposAnalise.analise && !aposAnalise.dividasPerguntadas) {
         await enviar(leadId, base.textos.pergunta_dividas ?? PADRAO_CODIGO.pergunta_dividas!)
         await patchState(leadId, { dividasPerguntadas: Date.now() })
