@@ -1,4 +1,5 @@
 import { CONFIG } from './config'
+import { semInvisiveis } from './stevo'
 import type OpenAI from 'openai'
 import { CRM_MAP, campoByKey, type Campo, type Porta } from './crm-map'
 import { DISSE_NAO_SEI, evidenceFound, matchOption, overlap, parseNumeroBR } from './guards'
@@ -353,7 +354,10 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
         const agenda = await agendaIndisponivel(ctx, e)
         return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". ${agenda.content}`, { handoff: true })
       }
-      if (!opcoes.length) return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". Não há horário livre nos próximos dias: diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano).`)
+      if (!opcoes.length) {
+        await aplicarFinalizacao(ctx, 'agenda_indisponivel', 'Lead qualificado; sem horário livre nos próximos dias. Propor horário ao lead.')
+        return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". Não há horário livre nos próximos dias: diga que a equipe vai propor o horário da reunião por aqui em até 24 horas. Não faça pergunta.`, { handoff: true })
+      }
       const textoResultado = resultadoQualificado(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), brl(r.reducaoMensal), opcoes.map(o => `na *${o.rotulo}*`).join(' ou '))
       return ok(`QUALIFICADO. O resultado com os dois horários (${listaSlots(opcoes)}) já sai pelo sistema.`, { textoFinal: textoResultado })
     }
@@ -398,7 +402,10 @@ async function consultarHorarios(ctx: ToolCtx): Promise<ToolOutcome> {
   const state = await ctx.port.getState()
   if (state.analise?.decisao !== 'qualificado') return err('Só ofereça horário depois que analisar_contracheque devolver QUALIFICADO.')
   const { opcoes, reserva } = await escolherOpcoes(ctx)
-  if (!opcoes.length) return err('Não há horário livre nos próximos dias. Diga que a equipe vai propor um horário e chame finalizar_atendimento(pediu_humano) com a fala do lead como evidência.')
+  if (!opcoes.length) {
+    await aplicarFinalizacao(ctx, 'agenda_indisponivel', 'Lead qualificado; sem horário livre nos próximos dias. Propor horário ao lead.')
+    return ok('Não há horário livre nos próximos dias. Diga que a equipe vai propor o horário da reunião por aqui em até 24 horas. Não faça pergunta.', { handoff: true })
+  }
   return ok(`Ofereça exatamente estas duas opções: ${listaSlots(opcoes)}. Outras livres, só se o lead pedir dia ou turno diferente: ${listaSlots(reserva) || 'nenhuma'}. Dias de reunião: terça, quarta e quinta, das 15h30 às 17h30.`)
 }
 
@@ -542,6 +549,19 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
         const sinal = SINAL_MOTIVO[motivo]
         if (!evidenceFound(ev, ctx.leadText) || (sinal && !sinal.test(ev))) {
           return err(`NÃO finalizado: a evidência "${ev}" não comprova "${motivo}" no que o lead escreveu. Continue o atendimento.`)
+        }
+        if (motivo === 'pediu_humano') {
+          // Texto pronto do anúncio ("gostaria de falar com um advogado especialista") não é pedido de pessoa
+          const doLead = semInvisiveis(ctx.lastLeadText)
+          if (CRM_MAP.mensagensDeAnuncio.some(re => re.test(doLead) || re.test(semInvisiveis(ev)))) {
+            return err('NÃO finalizado: essa é a mensagem automática do anúncio, não um pedido para falar com uma pessoa. Siga o roteiro: peça o contracheque (sem se apresentar de novo se já se apresentou).')
+          }
+          // Pedido de verdade: na primeira vez a Lia explica o caminho; só passa para a equipe se o lead insistir (11/11/2026)
+          const st = await port.getState()
+          if (!st.pediuPessoa) {
+            await port.patchState({ pediuPessoa: true })
+            return err('NÃO finalizado ainda: é a primeira vez que o lead pede para falar com alguém. Explique em uma ou duas frases que o primeiro passo é a análise gratuita do contracheque e que o advogado conversa com ele na reunião, logo depois da análise; peça o contracheque. Se ele insistir em falar com uma pessoa agora, aí sim chame finalizar_atendimento(pediu_humano).')
+          }
         }
         const urgente = motivo === 'urgencia'
         await aplicarFinalizacao(ctx, motivo, String(input.resumo || ''), urgente)

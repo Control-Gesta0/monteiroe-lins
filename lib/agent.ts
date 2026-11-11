@@ -131,7 +131,14 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       // 3. Mensagem pronta do anúncio como primeira mensagem: abertura aprovada, sem LLM (não é pedido de pessoa)
       const textoLimpo = semInvisiveis(textoTurno)
-      if (porta.id === 'superendividamento' && !conversa.some(m => m.dir === 'out') && CRM_MAP.mensagensDeAnuncio.some(re => re.test(textoLimpo))) {
+      const ehAnuncio = porta.id === 'superendividamento' && CRM_MAP.mensagensDeAnuncio.some(re => re.test(textoLimpo))
+      // A abertura já saiu (o formulário chegou junto com a mensagem do anúncio): não responde de novo, espera o contracheque
+      if (ehAnuncio && conversa.some(m => m.dir === 'out')) {
+        await markAnswered(leadId, target.id)
+        await logExec({ tipo: 'pulou', leadId, nome, porta: porta.id, detalhe: 'mensagem pronta do anúncio depois da abertura: nada a responder' })
+        return
+      }
+      if (ehAnuncio) {
         const texto = comNome(base.textos.abertura, primeiroNome(nome))
         const detail = await enviar(leadId, texto)
         await markAnswered(leadId, target.id)

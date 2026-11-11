@@ -159,9 +159,24 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     id: 'pede-pessoa',
     porta: 'superendividamento',
     historico: [['in', 'oi'], ['out', ABERTURA]],
-    msgs: ['prefiro falar com uma pessoa, pode ser?'],
-    checks: [semFallback, tomHumano, usou('finalizar_atendimento')],
-    criterios: ['Aceita sem insistir e diz que a equipe responde por ali em até 24 horas, sem pergunta no fim'],
+    msgs: ['prefiro falar com uma pessoa, pode ser?', 'não, quero falar com uma pessoa agora mesmo'],
+    checks: [
+      semFallback, tomHumano,
+      { nome: 'na primeira vez não passa para a equipe', fn: (_w: World, t: T) => !t[0].handoff },
+      { nome: 'quando insiste, passa para a equipe', fn: (_w: World, t: T) => t[t.length - 1].handoff },
+    ],
+    criterios: [
+      'Na primeira resposta explica que o primeiro passo é a análise gratuita do contracheque e que o advogado conversa com ele na reunião, e pede o contracheque',
+      'Na segunda resposta, como o lead insistiu, aceita sem insistir e diz que a equipe responde por ali em até 24 horas, sem pergunta no fim',
+    ],
+  },
+  {
+    id: 'anuncio-nao-e-pedido-de-pessoa',
+    porta: 'superendividamento',
+    historico: [['in', 'oi'], ['out', ABERTURA]],
+    msgs: ['Olá, eu gostaria de falar com um advogado especialista'],
+    checks: [semFallback, tomHumano, { nome: 'não passa para a equipe', fn: (_w: World, t: T) => !t[0].handoff }],
+    criterios: ['Não diz que vai passar para a equipe; segue o atendimento pedindo o contracheque, sem se apresentar de novo'],
   },
 ]
 }
