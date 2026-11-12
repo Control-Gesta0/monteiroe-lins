@@ -211,6 +211,8 @@ export interface ResultadoAnalise {
   rubricasARevisar: Rubrica[];
   /** Texto pronto para o campo Observação do lead no Kommo. */
   observacao: string;
+  /** a conta não fecha (consignações maiores que a renda líquida, ou descontos obrigatórios acima de 70% do bruto): leitura errada ou mais de um contracheque */
+  incoerente: boolean;
 }
 
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -228,6 +230,7 @@ export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): Resul
     totais,
     reducaoMensal,
     rubricasARevisar,
+    incoerente: false,
     observacao: [
       `Análise IA (${decisao}): ${motivo}`,
       `Bruto ${brl(totais.rendaBruta)} · obrigatórios ${brl(totais.descontosObrigatorios)} · líquido ${brl(totais.rendaLiquida)}`,
@@ -243,6 +246,10 @@ export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): Resul
 
   if (semTipo || totais.rendaBruta <= 0 || totais.rendaLiquida <= 0)
     return fechar('revisao_humana', 'contracheque incompleto ou ilegível');
+
+  // Nunca desqualifica com uma conta impossível (visto em 12/11/2026: PDF com dois contracheques somou os descontos dos dois)
+  if (totais.totalConsignacoes > totais.rendaLiquida || totais.descontosObrigatorios > totais.rendaBruta * 0.7)
+    return { ...fechar('revisao_humana', 'valores incoerentes: consignações acima da renda líquida ou descontos obrigatórios acima de 70% do bruto (leitura errada ou mais de um contracheque)'), incoerente: true };
 
   if (!(totais.rendaBruta > p.rendaBrutaMinima))
     return fechar('renda_abaixo', `renda bruta ${brl(totais.rendaBruta)} não passa de ${brl(p.rendaBrutaMinima)}`);

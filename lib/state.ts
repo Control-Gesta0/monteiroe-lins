@@ -37,6 +37,8 @@ export interface LeadState {
   /** quando (ms) a Lia perguntou das dívidas fora do contracheque (depois do resultado); a próxima resposta do lead vira nota */
   dividasPerguntadas?: number
   dividasAnotadas?: boolean
+  /** o contracheque já veio uma vez com a conta impossível (a Lia pediu de novo): na segunda, vai para a equipe */
+  contrachequeIncoerente?: boolean
   /** o lead já pediu uma vez para falar com uma pessoa (a Lia explicou o caminho); se insistir, passa para a equipe */
   pediuPessoa?: boolean
   /** assinatura do contracheque cuja imagem da análise já foi enviada */

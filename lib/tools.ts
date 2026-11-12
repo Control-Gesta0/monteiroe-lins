@@ -311,6 +311,10 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   if (!lido || !lido.rubricas.length) return err('Ainda não há contracheque legível na conversa. Peça ao lead uma foto ou PDF do contracheque mais recente, inteiro e legível.')
   if (/n[aã]o/.test(lido.legivel) || !lido.rubricas.some(r => r.tipo === 'P')) return err('O contracheque veio ilegível ou cortado (sem os proventos). Peça ao lead outra foto, com o documento inteiro e bem iluminado.')
 
+  if (lido.varios > 1) {
+    return err(`O arquivo tem ${lido.varios} contracheques juntos (meses ou vínculos diferentes). Peça ao lead para mandar só o contracheque do último mês, um por vez; se ele tiver mais de um vínculo, um de cada vez. Não faça conta.`)
+  }
+
   const assinatura = `${lido.competencia}|${lido.rubricas.map(r => `${r.descricao}:${r.valor}`).join(';')}`
   const state = await port.getState()
   if (state.analise?.assinatura === assinatura) {
@@ -318,6 +322,11 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   }
 
   let r: ResultadoAnalise = analisarContracheque(lido.rubricas)
+  // Conta impossível: na primeira vez pede o contracheque de novo (um por vez); na segunda, a equipe confere
+  if (r.incoerente && !state.contrachequeIncoerente) {
+    await port.patchState({ contrachequeIncoerente: true })
+    return err('Os valores lidos não fecharam (os descontos passaram da renda; deve ter mais de um contracheque no arquivo ou alguma parte saiu errada). Diga isso em uma frase, sem números, e peça para o lead mandar só o contracheque do último mês, inteiro, um por vez. Não faça conta.')
+  }
   // Valor ilegível pode virar o jogo: só desqualifica com o documento todo lido
   if (lido.ilegiveis.length && r.decisao !== 'qualificado' && r.decisao !== 'revisao_humana') {
     r = { ...r, decisao: 'revisao_humana', motivo: `valores ilegíveis: ${lido.ilegiveis.join(', ')}` }
@@ -334,7 +343,7 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
 
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
   // Revisão por rubrica não reconhecida (e sem valor ilegível): o lead recebe a análise prévia com esses descontos citados
-  const revisar = r.decisao === 'revisao_humana' && !lido.ilegiveis.length ? [...new Set(r.rubricasARevisar.map(x => nomeCurtoRubrica(x.descricao)))].slice(0, 4) : []
+  const revisar = r.decisao === 'revisao_humana' && !lido.ilegiveis.length && !r.incoerente ? [...new Set(r.rubricasARevisar.map(x => nomeCurtoRubrica(x.descricao)))].slice(0, 4) : []
   const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, revisar }
   return aplicarDecisao(ctx, decisao)
 }

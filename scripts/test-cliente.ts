@@ -454,5 +454,18 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     true, ['FUNFIN', 'APROFEM', 'LECCA'], [],
   ])
 
+  // ---------- 20. Leitura errada: conta impossível e arquivo com vários contracheques ----------
+  {
+    // PDF com dois contracheques lidos como um (12/11/2026): descontos dos dois, proventos de um
+    const rub = (d: string, t: 'P' | 'D', v: number) => ({ codigo: '', descricao: d, tipo: t, valor: v })
+    const dois = [rub('Salário-Base', 'P', 3863.84), rub('Gratificação Adicional', 'P', 1878.23), rub('Fundo Previdenciário', 'D', 622.08), rub('Pensão Alimentícia 1', 'D', 1286.06), rub('Fundo Previdenciário', 'D', 595.03), rub('Pensão Alimentícia 1', 'D', 1042.68), rub('Imposto Renda Retido Fonte', 'D', 751.29), rub('Banco Bradesco - emp 1', 'D', 2114.38), rub('Cartão Banco Pine', 'D', 155.26)]
+    const a = analisarContracheque(dois)
+    eq('leitura errada: conta impossível nunca desqualifica (vai para a equipe)', [a.incoerente, a.decisao], [true, 'revisao_humana'])
+    eq('leitura errada: contracheque normal não é marcado', analisarContracheque(rubricas(cenarios['1_qualifica_comprometimento'])).incoerente, false)
+    const varios = extrairContracheque('AVISO | VARIOS CONTRACHEQUES | 2\nCONTRACHEQUE | SEE SP | 10/2026 | sim\nRUBRICA | 1 | SALARIO | P | 3.000,00\nCONTRACHEQUE | SEE SP | 10/2026 | sim\nRUBRICA | 1 | SALARIO | P | 2.000,00')
+    eq('vários contracheques: o aviso é lido e os vínculos da mesma competência não se juntam', [varios?.varios, varios?.rubricas.length], [2, 1])
+    eq('Defensoria: sem estado fixo', /Defensoria Pública do seu estado/.test(CRM_MAP.sdr.textos.renda_abaixo), true)
+  }
+
   return 0
 }

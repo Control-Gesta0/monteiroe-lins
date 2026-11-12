@@ -19,6 +19,8 @@ export interface ContrachequeLido {
   rubricas: Rubrica[]
   /** linhas com valor ILEGÍVEL (ficam fora da conta) */
   ilegiveis: string[]
+  /** o arquivo tinha mais de um contracheque (meses ou vínculos diferentes): quantos */
+  varios: number
 }
 
 interface Bloco { orgao: string; competencia: string; legivel: string; linhas: string[] }
@@ -31,8 +33,11 @@ const chaveCompetencia = (c: string) => {
 export function extrairContracheque(texto: string): ContrachequeLido | null {
   const blocos: Bloco[] = []
   let atual: Bloco | null = null
+  let varios = 0
   for (const bruta of texto.split(/\r?\n/)) {
     const linha = bruta.replace(/^\[(imagem|documento) do lead\]:\s*/i, '').trim()
+    const aviso = /^AVISO\s*\|\s*V[AÁ]RIOS CONTRACHEQUES\s*\|\s*(\d+)/i.exec(linha)
+    if (aviso) { varios = Math.max(varios, Number(aviso[1])); continue }
     if (/^CONTRACHEQUE\s*\|/i.test(linha)) {
       const [, orgao = '', competencia = '', legivel = ''] = linha.split('|').map(s => s.trim())
       atual = { orgao, competencia, legivel: legivel.toLowerCase(), linhas: [] }
@@ -47,7 +52,8 @@ export function extrairContracheque(texto: string): ContrachequeLido | null {
 
   // Competência mais recente (sem competência legível: o último bloco enviado)
   const melhor = comLinhas.reduce((a, b) => (chaveCompetencia(b.competencia) >= chaveCompetencia(a.competencia) ? b : a))
-  const escolhidos = comLinhas.filter(b => b === melhor || (melhor.competencia && b.competencia === melhor.competencia))
+  // Com o aviso de vários contracheques, blocos da mesma competência são vínculos diferentes: não junta
+  const escolhidos = varios > 1 ? [melhor] : comLinhas.filter(b => b === melhor || (melhor.competencia && b.competencia === melhor.competencia))
 
   const vistas = new Set<string>()
   const rubricas: Rubrica[] = []
@@ -71,5 +77,5 @@ export function extrairContracheque(texto: string): ContrachequeLido | null {
       rubricas.push({ codigo, descricao, tipo, valor })
     }
   }
-  return { orgao: melhor.orgao, competencia: melhor.competencia, legivel: melhor.legivel, rubricas, ilegiveis }
+  return { orgao: melhor.orgao, competencia: melhor.competencia, legivel: melhor.legivel, rubricas, ilegiveis, varios }
 }

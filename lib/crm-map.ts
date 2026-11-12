@@ -119,6 +119,7 @@ export const CRM_MAP = {
     instrucaoVisao: [
       'Você lê arquivos que um lead mandou pelo WhatsApp para um escritório de advocacia.',
       'Se for CONTRACHEQUE (holerite, demonstrativo de pagamento, ficha financeira), transcreva só neste formato, sem comentários:',
+      'Se o arquivo tiver MAIS DE UM contracheque (meses diferentes ou mais de um vínculo/cargo), escreva antes de tudo a linha AVISO | VARIOS CONTRACHEQUES | <quantos> e depois transcreva cada um separado, com a sua própria linha CONTRACHEQUE e as suas linhas RUBRICA.',
       'CONTRACHEQUE | <órgão pagador> | <competência MM/AAAA> | <legível: sim, parcial ou não>',
       'RUBRICA | <código> | <descrição exatamente como está escrita> | <P se for provento/vantagem/crédito, D se for desconto> | <valor com vírgula decimal, ex.: 1.234,56>',
       'Escreva uma linha RUBRICA para CADA linha de provento e de desconto, na ordem do documento. Não inclua linhas de total (total bruto, total de descontos, líquido a receber, base de cálculo).',
@@ -165,7 +166,7 @@ export const CRM_MAP = {
     },
     endereco: 'Rua da Quitanda, 19, sala 711, Centro',
     textos: {
-      renda_abaixo: 'Olhando a sua situação com cuidado, pelas exigências da lei e pelos custos do processo, a ação não seria vantajosa pra você agora. A Defensoria Pública do RJ atende de graça e pode te orientar nesse caso. Se a sua situação mudar, pode chamar a gente de novo.',
+      renda_abaixo: 'Olhando a sua situação com cuidado, pelas exigências da lei e pelos custos do processo, a ação não seria vantajosa pra você agora. A Defensoria Pública do seu estado atende de graça e pode te orientar nesse caso. Se a sua situação mudar, pode chamar a gente de novo.',
       alivio_baixo: 'Fiz a análise e a redução na parcela seria pequena, não compensaria o custo de entrar com a ação. Prefiro ser sincera com você do que te indicar algo que não vai trazer retorno. Se a situação mudar, me chama aqui.',
       revisao_humana: `Recebi tudo. Tem uns descontos no seu contracheque que a equipe precisa conferir, e eles te respondem por aqui em até 24 horas.`,
       atendimento: TEXTO_24H,
