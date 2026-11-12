@@ -9,7 +9,7 @@ import type { LeadState } from './state'
 import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
 import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
 import { extrairContracheque } from './contracheque-texto'
-import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos } from './base-core'
+import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos, revisaoPrevia, nomeCurtoRubrica } from './base-core'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -333,11 +333,13 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   if (corp) await port.writeFields([{ field_id: sdr.campos.corporacao, values: [{ enum_id: corp.enumId }] }])
 
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
-  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal }
+  // Revisão por rubrica não reconhecida (e sem valor ilegível): o lead recebe a análise prévia com esses descontos citados
+  const revisar = r.decisao === 'revisao_humana' && !lido.ilegiveis.length ? [...new Set(r.rubricasARevisar.map(x => nomeCurtoRubrica(x.descricao)))].slice(0, 4) : []
+  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, revisar }
   return aplicarDecisao(ctx, decisao)
 }
 
-type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number }
+type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; revisar?: string[] }
 
 /** O que cada resultado faz no card e a mensagem que sai (qualificado traz os dois horários livres). */
 export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutcome> {
@@ -374,7 +376,11 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
     default:
       await moverSdr(port, sdr.etapas.revisao)
       await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
-      return ok('Revisão humana. A mensagem aprovada já sai pelo sistema.', { handoff: true, textoFinal: texto(ctx, 'enc_revisao') })
+      // Pedido do escritório (12/11/2026): mesmo na revisão, o cliente recebe a análise com o que deu para calcular
+      const msg = d.revisar?.length && r.totais.comprometimento > 0
+        ? revisaoPrevia(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), r.reducaoMensal > 0 ? brl(r.reducaoMensal) : null, d.revisar)
+        : texto(ctx, 'enc_revisao')
+      return ok('Revisão humana. A mensagem aprovada (com a análise prévia, quando dá) já sai pelo sistema.', { handoff: true, textoFinal: msg })
   }
 }
 

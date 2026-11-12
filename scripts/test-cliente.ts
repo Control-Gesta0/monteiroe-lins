@@ -443,5 +443,16 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     function svgSemCb() { return im.svgDaAnalise({ nome: 'A&B', orgao: 'PMERJ', competencia: '09/2026', bruta: 11600, obrigatorios: 3336.83, emprestimo: 4510.9, cartaoConsignado: 412.2, cartaoBeneficio: 0, limite: 0.4 }, 'eA==') }
   }
 
+  // ---------- 19. Revisão com análise prévia ----------
+  eq('revisão: análise prévia com o comprometimento e os descontos a conferir', [
+    bc.revisaoPrevia({}, 'Ana', '29,9%', null, ['LECCA', 'FUNFIN']),
+    bc.revisaoPrevia({}, '', '52%', 'R$ 1.200,00', ['NEO INSTITUICAO DE PAGAMENTO']).includes('é possível reduzir cerca de *R$ 1.200,00* por mês'),
+    [bc.nomeCurtoRubrica('FUNFIN - EMENDA 41 À LOM'), bc.nomeCurtoRubrica('APROFEM-SIND PROF FUNC ENS MUN'), bc.nomeCurtoRubrica('LECCA')],
+    bc.validarTexto('enc_revisao_previa', bc.PADRAO_CODIGO.enc_revisao_previa!),
+  ], [
+    'Ana, fiz uma análise prévia do seu contracheque. Com os descontos que consegui identificar, *29,9%* da sua renda líquida está indo para os consignados. Alguns descontos (LECCA e FUNFIN) precisam ser conferidos pela nossa equipe, porque podem mudar esse resultado. A equipe te responde por aqui em até 24 horas.',
+    true, ['FUNFIN', 'APROFEM', 'LECCA'], [],
+  ])
+
   return 0
 }
