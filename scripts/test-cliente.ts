@@ -210,7 +210,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   {
     const { w, port } = mundo()
     const out = await runTool(ctx(port, 'CONTRACHEQUE | PMERJ | 09/2026 | parcial\nRUBRICA | 1 | SOLDO | P | 12.000,00\nRUBRICA | 2 | IMP RENDA | D | 2.000,00\nRUBRICA | 3 | EMPREST BRADESCO | D | 4.500,00\nRUBRICA | 4 | DESC DIVERSOS | D | 900,00'), 'analisar_contracheque', {})
-    eq('fluxo revisão: texto de 24h pelo código', out.textoFinal, CRM_MAP.sdr.textos.revisao_humana)
+    eq('fluxo revisão: análise prévia pelo código, com o desconto a conferir e as 24h', [/^Fiz uma análise prévia/.test(out.textoFinal || ''), /\*45%\*/.test(out.textoFinal || ''), /\(DESC DIVERSOS\)/.test(out.textoFinal || ''), /24 horas/.test(out.textoFinal || '')], [true, true, true, true])
     eq('fluxo revisão: etapa Retorno Imediato + tarefa em 24h', [w.statusId, w.tasks[0]?.typeId, w.tasks[0]?.completeTill], [CRM_MAP.sdr.etapas.revisao, CRM_MAP.sdr.tarefas.tipoRetorno, quartaManha + 24 * 3600])
   }
   {
