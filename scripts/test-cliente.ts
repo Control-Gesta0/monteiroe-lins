@@ -5,7 +5,7 @@
  *  3. Leitura da transcrição do contracheque
  *  4. Agenda (terça, quarta e quinta, das 15h30 às 17h30)
  *  5. Roteamento: lead novo × quem já é cliente
- *  6. Travas de texto (OAB, margem de 40%)
+ *  6. Travas de texto (OAB)
  *  7. Ferramentas ponta a ponta numa porta em memória
  */
 import fs from 'node:fs'
@@ -122,7 +122,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('trava: chance de vitória bloqueia', regras('A chance de vitória é de 80%.'), ['citou chance de vitória'])
   eq('trava: "reduzir até 70%" bloqueia', regras('Dá pra reduzir até 70% dos seus empréstimos.'), ['prometeu redução percentual'])
   eq('trava: honorários com valor bloqueia', regras('Os honorários ficam em 12x de R$ 1.000.'), ['falou de honorários com valor'])
-  eq('trava: margem de 30% bloqueia', regras('O juiz limita a 30% da sua renda.'), ['margem errada (o teto é 40%)'])
+  eq('trava: margem do órgão (35% da renda) não é mais bloqueada', regras('No Estado de SP o limite é 35% da sua renda.'), [])
   eq('trava passa: resultado com "pode baixar cerca de"', regras('João, pela análise **59,6%** da sua renda líquida tá indo pra consignado. O decreto do RJ limita em 40%, e com a ação a parcela pode baixar cerca de **R$ 1.617** por mês. Vamos marcar uma conversa com o advogado pra ver os detalhes?'), [])
   eq('trava passa: "não tem garantia de resultado"', regras('Não tem garantia de resultado, quem avalia é o advogado.'), [])
   eq('trava passa: "não dá pra garantir que você vai ganhar"', regras('Não dá pra garantir que você vai ganhar, isso o advogado avalia.'), [])
@@ -209,8 +209,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   }
   {
     const { w, port } = mundo()
-    const out = await runTool(ctx(port, 'CONTRACHEQUE | PMERJ | 09/2026 | parcial\nRUBRICA | 1 | SOLDO | P | 12.000,00\nRUBRICA | 2 | IMP RENDA | D | 2.000,00\nRUBRICA | 3 | EMPREST BRADESCO | D | 4.500,00\nRUBRICA | 4 | DESC DIVERSOS | D | 900,00'), 'analisar_contracheque', {})
-    eq('fluxo revisão: análise prévia pelo código, com o desconto a conferir e as 24h', [/^Fiz uma análise prévia/.test(out.textoFinal || ''), /\*45%\*/.test(out.textoFinal || ''), /\(DESC DIVERSOS\)/.test(out.textoFinal || ''), /24 horas/.test(out.textoFinal || '')], [true, true, true, true])
+    const out = await runTool(ctx(port, 'CONTRACHEQUE | PMERJ | 09/2026 | parcial\nRUBRICA | 1 | SOLDO | P | 12.000,00\nRUBRICA | 2 | IMP RENDA | D | 2.000,00\nRUBRICA | 3 | EMPREST BRADESCO | D | 4.800,00\nRUBRICA | 4 | DESC DIVERSOS | D | 900,00'), 'analisar_contracheque', {})
+    eq('fluxo revisão: análise prévia pelo código, com o desconto a conferir e as 24h', [/^Fiz uma análise prévia/.test(out.textoFinal || ''), /\*48%\*/.test(out.textoFinal || ''), /\(DESC DIVERSOS\)/.test(out.textoFinal || ''), /24 horas/.test(out.textoFinal || '')], [true, true, true, true])
     eq('fluxo revisão: etapa Retorno Imediato + tarefa em 24h', [w.statusId, w.tasks[0]?.typeId, w.tasks[0]?.completeTill], [CRM_MAP.sdr.etapas.revisao, CRM_MAP.sdr.tarefas.tipoRetorno, quartaManha + 24 * 3600])
   }
   {
@@ -263,7 +263,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('base: texto de 24h do prompt = o do código', padroes.enc_atendimento, CRM_MAP.sdr.textos.atendimento)
   const editado = bc.renderTemplate(ler('nucleo.md'), { escritorio: 'A Monteiro & Lins atua desde 1995 em direito bancário.' })
   eq('base: edição troca só o bloco', [editado.includes('desde 1995'), editado.includes('década de 90 e desde'), editado.includes('Rua da Quitanda, 19')], [true, false, true])
-  eq('base: trava barra "vai baixar" e 30%', bc.validarTexto('fatos', 'A parcela vai baixar e o juiz limita a 30% da renda.').length, 2)
+  eq('base: trava barra "vai baixar"', bc.validarTexto('fatos', 'A parcela vai baixar e o juiz limita a 30% da renda.').length, 1)
   eq('base: encerramento sem pergunta', bc.validarTexto('enc_revisao', 'A equipe confere, tudo bem?').length, 1)
   eq('base: confirmação exige {horario} e {onde}', [bc.validarTexto('confirmacao', 'Fechado!').length, bc.confirmacao({}, 'quinta (16/10) às 10h', 'presencial')], [2, 'Fechado: quinta (16/10) às 10h, presencial. Até lá!'])
   eq('base: informação acrescentada vira seção 7', bc.renderNucleo(ler('nucleo.md'), {}, [{ id: 'extra_abcd1234', titulo: 'Estacionamento', texto: 'Tem estacionamento rotativo na rua.' }]).includes('## 7. Informações cadastradas pela equipe do escritório\nUse quando'), true)
@@ -470,6 +470,30 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   const { LEMBRETES } = await import('../lib/cobranca')
   eq('cobrança: três lembretes, 2 horas, 1 dia e 3 dias depois do pedido', LEMBRETES.map(l => [l.n, l.h]), [[1, 2], [2, 24], [3, 72]])
   eq('cobrança: as três frases começam diferente e passam nas travas', [new Set([1, 2, 3].map(n => bc.cobranca({}, n as 1 | 2 | 3, 'Adriana').split(' ').slice(0, 2).join(' '))).size, [1, 2, 3].map(n => bc.validarTexto(`cobranca_${n}` as 'cobranca_1', bc.PADRAO_CODIGO[`cobranca_${n}` as 'cobranca_1']!).length)], [3, [0, 0, 0]])
+
+  // ---------- 21. Margem por órgão (tabela do escritório, 13/11/2026) ----------
+  {
+    const { regraDoOrgao } = await import('../lib/margens')
+    const id = (o: string) => regraDoOrgao(o)?.id ?? null
+    eq('margens: órgão do contracheque → regra da tabela', [
+      id('GOVERNO DO ESTADO DE SÃO PAULO'), id('SÃO PAULO PREVIDÊNCIA - SPPREV'), id('GOVERNO DO ESTADO DE SAO PAULO - CENTRO INTEGRADO DE APOIO FINANCEIRO'),
+      id('PREFEITURA DE SÃO PAULO'), id('PREFEITURA MUNICIPAL DE SÃO JOSÉ DO RIO PRETO'), id('POLÍCIA MILITAR DO ESTADO DO RIO DE JANEIRO - PMERJ'),
+      id('PREFEITURA DA CIDADE DO RIO DE JANEIRO'), id('AMAPÁ PREVIDÊNCIA'), id('PREFEITURA MUNICIPAL DE CURITIBA'), id('SECRETARIA DE ESTADO DA EDUCACAO'),
+    ], ['sp', 'sp', 'sp', 'pmsp', null, 'rj', 'rio', 'amprev', 'curitiba', null])
+    const rub = (d: string, t: 'P' | 'D', v: number) => ({ codigo: '', descricao: d, tipo: t, valor: v })
+    const cc = [rub('SALARIO', 'P', 15000), rub('IMPOSTO DE RENDA', 'D', 3000), rub('EMPRESTIMO BANCO X', 'D', 6000), rub('CARTAO CONSIGNADO Y', 'D', 600)]
+    const sp = analisarContracheque(cc, undefined, 'GOVERNO DO ESTADO DE SÃO PAULO'), fora = analisarContracheque(cc, undefined, 'SECRETARIA DE ESTADO DA EDUCACAO')
+    // líquido 12.000: SP 35% só do empréstimo → 6.000 − 4.200 = 1.800; fora da tabela: 40% de tudo → 6.600 − 4.800 = 1.800
+    eq('margens: SP usa 35% só do empréstimo; fora da tabela, 40% de tudo', [Math.round(sp.reducaoMensal), sp.regra?.id, Math.round(fora.reducaoMensal), fora.regra, /Margem do órgão: Governo do Estado de São Paulo, 35%/.test(sp.observacao), /Órgão fora da tabela/.test(fora.observacao)], [1800, 'sp', 1800, null, true, true])
+    const rio = analisarContracheque(cc, undefined, 'PREFEITURA DA CIDADE DO RIO DE JANEIRO')
+    eq('margens: Prefeitura do Rio usa 55% de todas as consignações', Math.round(rio.reducaoMensal), 0)
+  }
+
+  eq('trava: horário com data fora da grade é inventado; os da grade passam', [
+    regras('Posso te passar *terça (17/11) às 15h30* ou *quarta (18/11) às 16h10*?'),
+    regras('Tenho *terça (17/11) às 15h30* ou *quinta (19/11) às 17h*.'),
+    regras('As reuniões são terça, quarta e quinta, das 15h30 às 17h30.'),
+  ], [['horário fora da agenda'], [], []])
 
   return 0
 }

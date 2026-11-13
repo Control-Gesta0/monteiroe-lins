@@ -321,7 +321,7 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
     return ok(`Este contracheque já foi analisado: ${state.analise.decisao}, comprometimento ${pct(state.analise.comprometimento)}, redução estimada ${brl(state.analise.reducaoMensal)}/mês. Siga o roteiro a partir daí.`)
   }
 
-  let r: ResultadoAnalise = analisarContracheque(lido.rubricas)
+  let r: ResultadoAnalise = analisarContracheque(lido.rubricas, undefined, lido.orgao)
   // Conta impossível: na primeira vez pede o contracheque de novo (um por vez); na segunda, a equipe confere
   if (r.incoerente && !state.contrachequeIncoerente) {
     await port.patchState({ contrachequeIncoerente: true })
@@ -336,6 +336,7 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   await port.patchState({ analise: {
     decisao: r.decisao, comprometimento: t.comprometimento, reducaoMensal: r.reducaoMensal, competencia: lido.competencia, assinatura, em: new Date().toISOString(),
     orgao: lido.orgao, bruta: t.rendaBruta, obrigatorios: t.descontosObrigatorios, emprestimo: t.emprestimoConsignado, cartaoConsignado: t.cartaoConsignado, cartaoBeneficio: t.cartaoBeneficio,
+    margem: r.regra?.margem ?? 0.4, alcance: r.regra?.alcance ?? 'global',
   } })
   await port.addNote(`🤖 Lia · análise do contracheque ${lido.orgao} ${lido.competencia}\n${r.observacao}${lido.ilegiveis.length ? `\nIlegíveis: ${lido.ilegiveis.join(', ')}` : ''}`)
   const corp = sdr.corporacaoPorOrgao.find(c => c.re.test(lido.orgao))
@@ -344,11 +345,14 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
   // Revisão por rubrica não reconhecida (e sem valor ilegível): o lead recebe a análise prévia com esses descontos citados
   const revisar = r.decisao === 'revisao_humana' && !lido.ilegiveis.length && !r.incoerente ? [...new Set(r.rubricasARevisar.map(x => nomeCurtoRubrica(x.descricao)))].slice(0, 4) : []
-  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, revisar }
+  const limite = r.regra
+    ? `Limite do órgão: ${pct(r.regra.margem!)} da renda líquida ${r.regra.alcance === 'global' ? 'para todas as consignações' : 'para empréstimo consignado'} (${r.regra.nome}, ${r.regra.norma}).`
+    : 'Órgão fora da tabela de margens do escritório: a conta usou o teto de 40% sobre todas as consignações; se o lead perguntar do limite, diga que o advogado confirma a regra do órgão dele na reunião.'
+  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, revisar, limite }
   return aplicarDecisao(ctx, decisao)
 }
 
-type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; revisar?: string[] }
+type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; revisar?: string[]; limite?: string }
 
 /** O que cada resultado faz no card e a mensagem que sai (qualificado traz os dois horários livres). */
 export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutcome> {
@@ -370,7 +374,7 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
         return ok(`QUALIFICADO. Comprometimento ${pct(r.totais.comprometimento)}, redução mensal estimada ${brl(r.reducaoMensal)}. Mostre esses dois números com "pode baixar cerca de". Não há horário livre nos próximos dias: diga que a equipe vai propor o horário da reunião por aqui em até 24 horas. Não faça pergunta.`, { handoff: true })
       }
       const textoResultado = resultadoQualificado(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), brl(r.reducaoMensal), opcoes.map(o => `na *${o.rotulo}*`).join(' ou '))
-      return ok(`QUALIFICADO. O resultado com os dois horários (${listaSlots(opcoes)}) já sai pelo sistema.`, { textoFinal: textoResultado })
+      return ok(`QUALIFICADO. O resultado com os dois horários (${listaSlots(opcoes)}) já sai pelo sistema. ${d.limite || ''}`.trim(), { textoFinal: textoResultado })
     }
     case 'renda_abaixo':
     case 'alivio_baixo': {
@@ -448,7 +452,9 @@ async function agendar(ctx: ToolCtx, input: Record<string, unknown>): Promise<To
   const state = await port.getState()
   if (state.analise?.decisao !== 'qualificado') return err('Só agende depois que analisar_contracheque devolver QUALIFICADO.')
   if (!evidenceFound(String(input.evidencia || ''), ctx.lastLeadText)) return err('O lead ainda não escolheu um horário nesta mensagem. Ofereça as opções e espere a resposta.')
-  if (!escolheuHorario(ctx.lastLeadText, Boolean(state.ofertados?.length))) return err('O lead topou a reunião mas ainda não escolheu dia e hora. Chame consultar_horarios e ofereça as duas opções, com dia e hora.')
+  // Houve oferta: a ferramenta registrou, ou a última mensagem da Lia trazia horário com data
+  const houveOferta = Boolean(state.ofertados?.length) || /\(\d{1,2}\/\d{1,2}\)\*?\s*às\s*\d/.test(ctx.lastAgentText)
+  if (!escolheuHorario(ctx.lastLeadText, houveOferta)) return err('O lead topou a reunião mas ainda não escolheu dia e hora. Chame consultar_horarios e ofereça as duas opções, com dia e hora.')
   const slot = slotDeIso(String(input.data_hora || ''), cfg)
   if (!slot) return err('data_hora inválida. Use AAAA-MM-DDTHH:MM, horário de Brasília.')
   if (!naGrade(slot, cfg)) return err(`${slot.rotulo} não está na agenda (terça, quarta e quinta, das 15h30 às 17h30). Chame consultar_horarios e ofereça as opções válidas.`)
@@ -573,7 +579,10 @@ export async function runTool(ctx: ToolCtx, name: string, input: Record<string, 
           }
           // Pedido de verdade: na primeira vez a Lia explica o caminho; só passa para a equipe se o lead insistir (11/11/2026)
           const st = await port.getState()
-          if (!st.pediuPessoa) {
+          // Conta os pedidos do próprio lead (a Lia pode ter explicado o caminho sem chamar a ferramenta na primeira vez)
+          const pedidos = ctx.leadText.split('\n').map(semInvisiveis)
+            .filter(l => /pessoa|atendente|humano|advogad|doutor|falar com/i.test(l) && !CRM_MAP.mensagensDeAnuncio.some(re => re.test(l))).length
+          if (!st.pediuPessoa && pedidos < 2) {
             await port.patchState({ pediuPessoa: true })
             return err('NÃO finalizado ainda: é a primeira vez que o lead pede para falar com alguém. Explique em uma ou duas frases que o primeiro passo é a análise gratuita do contracheque e que o advogado conversa com ele na reunião, logo depois da análise; peça o contracheque. Se ele insistir em falar com uma pessoa agora, aí sim chame finalizar_atendimento(pediu_humano).')
           }

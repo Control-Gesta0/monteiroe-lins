@@ -36,7 +36,7 @@ const CONTRACHEQUE_RENDA_BAIXA = [
   'RUBRICA | 501 | EMP CONSIG SANTANDER | D | 2.600,00',
 ].join('\n')
 const ABERTURA = 'Boa tarde! Aqui é a Lia, do escritório Monteiro & Lins, especializado em direito bancário. Para que possamos fazer a sua análise, pedimos a gentileza de mandar uma foto ou PDF do seu último contracheque, com a página inteira. A análise é gratuita.'
-const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1617.83, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
+const QUALIFICADO = { analise: { decisao: 'qualificado', comprometimento: 0.5958, reducaoMensal: 1618.79, competencia: '09/2026', assinatura: 'x', em: '2026-10-14' } }
 
 /** Cenários com os textos da versão candidata (o exame do Publicar passa os do rascunho). */
 export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
@@ -98,7 +98,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     checks: [
       umaPergunta, semFallback, tomHumano, comDiaDaSemana, usou('analisar_contracheque'), naoUsou('agendar_reuniao'),
       { nome: 'lead em "lead qualificado"', fn: (w: World) => w.statusId === 112457304 },
-      { nome: 'cita 59,6% e R$ 1.617', fn: (_w: World, t: T) => /59,6\s?%/.test(t[0].resposta) && /1\.617/.test(t[0].resposta) },
+      { nome: 'cita 59,6% e R$ 1.618 (margem do RJ: 35% do empréstimo)', fn: (_w: World, t: T) => /59,6\s?%/.test(t[0].resposta) && /1\.618/.test(t[0].resposta) },
       { nome: 'oferece dois horários em terça/quarta/quinta', fn: (_w: World, t: T) => (t[0].resposta.match(/\b(terça|quarta|quinta)\b/gi) || []).length >= 2 && !/\b(segunda|sexta)\b/i.test(t[0].resposta) },
     ],
     criterios: [
@@ -122,7 +122,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     id: 'pede-sexta',
     porta: 'superendividamento',
     state: QUALIFICADO,
-    historico: [['in', 'oi'], ['out', ABERTURA], ['in', CONTRACHEQUE_QUALIFICA], ['out', 'João, pela análise 59,6% da sua renda líquida tá indo pra consignado. O decreto do RJ limita em 40%, e com a ação a parcela pode baixar cerca de R$ 1.617 por mês. Vamos marcar uma conversa com o advogado?']],
+    historico: [['in', 'oi'], ['out', ABERTURA], ['in', CONTRACHEQUE_QUALIFICA], ['out', 'João, pela análise 59,6% da sua renda líquida tá indo pra consignado. Pela regra do seu órgão o limite é menor, e com a ação a parcela pode baixar cerca de R$ 1.618 por mês. Vamos marcar uma conversa com o advogado?']],
     msgs: ['pode ser sexta de manhã?'],
     checks: [umaPergunta, semFallback, tomHumano, naoUsou('agendar_reuniao'), usou('consultar_horarios'), comDiaDaSemana, { nome: 'não oferece sexta', fn: (_w: World, t: T) => !/sexta \(\d/.test(t[0].resposta) }],
     criterios: [
@@ -134,7 +134,7 @@ export function cenarios(textos: Partial<Textos> = {}): Cenario[] {
     id: 'agenda-e-confirma',
     porta: 'superendividamento',
     state: QUALIFICADO,
-    historico: [['in', 'oi'], ['out', ABERTURA], ['in', CONTRACHEQUE_QUALIFICA], ['out', 'Pela análise a parcela pode baixar cerca de R$ 1.617 por mês. Vamos marcar uma conversa com o advogado?']],
+    historico: [['in', 'oi'], ['out', ABERTURA], ['in', CONTRACHEQUE_QUALIFICA], ['out', 'Pela análise a parcela pode baixar cerca de R$ 1.618 por mês. Vamos marcar uma conversa com o advogado?']],
     msgs: ['vamos sim', 'pode ser a primeira opção, online'],
     checks: [
       usou('consultar_horarios'), usou('agendar_reuniao'),

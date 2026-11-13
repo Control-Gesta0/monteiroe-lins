@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const nome = primeiroNome(contato?.nome || (await getLead(leadId)).name || '')
   const png = await pngDaAnalise({
     nome, orgao: a.orgao || '', competencia: a.competencia || '', bruta: a.bruta, obrigatorios: a.obrigatorios,
-    emprestimo: a.emprestimo || 0, cartaoConsignado: a.cartaoConsignado || 0, cartaoBeneficio: a.cartaoBeneficio || 0, limite: 0.4,
+    emprestimo: a.emprestimo || 0, cartaoConsignado: a.cartaoConsignado || 0, cartaoBeneficio: a.cartaoBeneficio || 0, limite: a.margem ?? 0.4, alcance: a.alcance ?? 'global',
   })
   res.setHeader('Content-Type', 'image/png')
   res.setHeader('Content-Length', String(png.length))

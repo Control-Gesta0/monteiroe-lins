@@ -29,6 +29,8 @@ export interface LeadState {
     decisao: string; comprometimento: number; reducaoMensal: number; competencia: string; assinatura: string; em: string
     /** para a imagem da análise (desde 11/11/2026) */
     orgao?: string; bruta?: number; obrigatorios?: number; emprestimo?: number; cartaoConsignado?: number; cartaoBeneficio?: number
+    /** margem do órgão (tabela do escritório) e se vale só para empréstimo ou para todas as consignações */
+    margem?: number; alcance?: 'emprestimo' | 'global'
   }
   /** horários (epoch s) já oferecidos ao lead: o próximo consultar_horarios oferece outros */
   ofertados?: number[]

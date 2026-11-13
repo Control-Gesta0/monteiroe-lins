@@ -1,3 +1,4 @@
+import { regraDoOrgao, type RegraMargem } from './margens';
 // Análise do contracheque · réplica em código da planilha do escritório
 // ("READEQUAÇÃO DE MARGEM", abas CONTRACHEQUE, REGRAS, SE 40%, SE 35-5 e COMPARATIVO).
 //
@@ -195,9 +196,18 @@ export function calcularTotais(rubricas: Rubrica[], p = PARAMETROS): Totais {
 const reducaoDaTese = (t: Totais, tese: Tese) =>
   tese === 'A' ? t.reducaoTeseA : tese === 'B' ? t.reducaoTeseB : Math.max(t.reducaoTeseA, t.reducaoTeseB);
 
-function passaNaRegra(t: Totais, p: typeof PARAMETROS): boolean {
+/** Redução pela margem do órgão (tabela do escritório): o que passa do limite sai. */
+export function reducaoPelaMargem(t: Totais, r: RegraMargem): number {
+  const usa = r.alcance === 'global' ? t.totalConsignacoes : t.emprestimoConsignado;
+  return Math.max(0, usa - t.rendaLiquida * (r.margem ?? 0));
+}
+
+const reducaoDe = (t: Totais, p: typeof PARAMETROS, regra: RegraMargem | null) =>
+  regra && regra.margem !== null ? reducaoPelaMargem(t, regra) : reducaoDaTese(t, p.tese);
+
+function passaNaRegra(t: Totais, p: typeof PARAMETROS, regra: RegraMargem | null = null): boolean {
   if (!(t.rendaBruta > p.rendaBrutaMinima)) return false;
-  const porComprometimento = t.comprometimento > p.comprometimentoMinimo && reducaoDaTese(t, p.tese) > p.reducaoMinima;
+  const porComprometimento = t.comprometimento > p.comprometimentoMinimo && reducaoDe(t, p, regra) > p.reducaoMinima;
   const porCartaoBeneficio = t.cartaoBeneficio > p.cartaoBeneficioMinimo;
   return porComprometimento || porCartaoBeneficio;
 }
@@ -206,8 +216,10 @@ export interface ResultadoAnalise {
   decisao: Decisao;
   motivo: string;
   totais: Totais;
-  /** Redução mensal pela tese configurada: é o valor que a IA pode citar ao lead. */
+  /** Redução mensal (margem do órgão, ou a tese configurada se o órgão não está na tabela): é o valor que a IA pode citar ao lead. */
   reducaoMensal: number;
+  /** a regra de margem usada (null = órgão fora da tabela: teto antigo de 40%) */
+  regra: RegraMargem | null;
   rubricasARevisar: Rubrica[];
   /** Texto pronto para o campo Observação do lead no Kommo. */
   observacao: string;
@@ -218,11 +230,13 @@ export interface ResultadoAnalise {
 const brl = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const pct = (n: number) => `${(n * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 
-export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): ResultadoAnalise {
+export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS, orgao = ''): ResultadoAnalise {
   const totais = calcularTotais(rubricas, p);
   const rubricasARevisar = rubricas.filter((r) => classificar(r) === 'REVISAR');
   const semTipo = rubricas.some((r) => classificar(r) === 'INFORMAR TIPO');
-  const reducaoMensal = reducaoDaTese(totais, p.tese);
+  const achada = orgao ? regraDoOrgao(orgao) : null;
+  const regra = achada && achada.margem !== null ? achada : null;
+  const reducaoMensal = reducaoDe(totais, p, regra);
 
   const fechar = (decisao: Decisao, motivo: string): ResultadoAnalise => ({
     decisao,
@@ -230,12 +244,15 @@ export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): Resul
     totais,
     reducaoMensal,
     rubricasARevisar,
+    regra,
     incoerente: false,
     observacao: [
       `Análise IA (${decisao}): ${motivo}`,
       `Bruto ${brl(totais.rendaBruta)} · obrigatórios ${brl(totais.descontosObrigatorios)} · líquido ${brl(totais.rendaLiquida)}`,
       `Consignações ${brl(totais.totalConsignacoes)} (${pct(totais.comprometimento)}): emp. ${brl(totais.emprestimoConsignado)} · cartão consig. ${brl(totais.cartaoConsignado)} · cartão benefício ${brl(totais.cartaoBeneficio)}`,
-      `Redução/mês: tese 40% ${brl(totais.reducaoTeseA)} · tese 35+5 ${brl(totais.reducaoTeseB)}`,
+      regra
+        ? `Margem do órgão: ${regra.nome}, ${pct(regra.margem!)} ${regra.alcance === 'global' ? 'para todas as consignações' : 'para empréstimo consignado'} (${regra.norma}) · redução/mês ${brl(reducaoMensal)}`
+        : `${orgao ? `Órgão fora da tabela de margens${achada ? ` (${achada.nome}: percentual a validar)` : ''}: usado o teto de 40% sobre todas as consignações. ` : ''}Redução/mês: tese 40% ${brl(totais.reducaoTeseA)} · tese 35+5 ${brl(totais.reducaoTeseB)}`,
       rubricasARevisar.length
         ? `A revisar: ${rubricasARevisar.map((r) => `${r.descricao} ${brl(r.valor)}`).join('; ')}`
         : '',
@@ -254,7 +271,7 @@ export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): Resul
   if (!(totais.rendaBruta > p.rendaBrutaMinima))
     return fechar('renda_abaixo', `renda bruta ${brl(totais.rendaBruta)} não passa de ${brl(p.rendaBrutaMinima)}`);
 
-  if (passaNaRegra(totais, p)) {
+  if (passaNaRegra(totais, p, regra)) {
     const porCartao = totais.cartaoBeneficio > p.cartaoBeneficioMinimo;
     return fechar('qualificado', porCartao ? 'cartão benefício acima do mínimo' : 'comprometimento e redução acima do mínimo');
   }
@@ -265,7 +282,7 @@ export function analisarContracheque(rubricas: Rubrica[], p = PARAMETROS): Resul
   if (rubricasARevisar.length) {
     for (const como of ['CARTÃO BENEFÍCIO', 'CARTÃO CONSIGNADO', 'DESCONTO OBRIGATÓRIO'] as const) {
       const simulado = rubricas.map((r) => (classificar(r) === 'REVISAR' ? { ...r, classificacaoManual: como } : r));
-      if (passaNaRegra(calcularTotais(simulado, p), p))
+      if (passaNaRegra(calcularTotais(simulado, p), p, regra))
         return fechar('revisao_humana', 'rubricas não reconhecidas podem mudar o resultado');
     }
   }

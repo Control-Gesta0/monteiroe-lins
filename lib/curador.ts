@@ -91,7 +91,7 @@ DESTINOS
 REGRAS DOS TEXTOS (o sistema recusa o que quebrar estas regras)
 - Sem travessão (— ou –). Sem "espero ter ajudado", "fico à disposição".
 - Nada de "vai baixar", "vai ganhar", "garantido", chance de vitória, redução em porcentagem prometida, honorário com valor. Redução é sempre "pode baixar cerca de".
-- O teto do decreto é 40% da renda líquida. Nunca escreva 30% ou 35% da renda.
+- O limite (margem) depende do órgão pagador, pela tabela do escritório no código (lib/margens.ts). Não fixe um percentual de limite nos textos: quem cita o limite do caso é a ferramenta da análise.
 - Mensagens de encerramento (ids enc_) e a confirmação não têm pergunta. A confirmação mantém {horario} e {onde} uma vez cada.
 - Escreva como o comercial do escritório escreve no WhatsApp: educado, direto, sem juridiquês, frases curtas.
 

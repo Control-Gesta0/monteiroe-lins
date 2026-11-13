@@ -180,7 +180,6 @@ const PORQUE: Record<string, string> = {
   'citou chance de vitória': 'cita chance de vitória',
   'prometeu redução percentual': 'promete redução em porcentagem',
   'falou de honorários com valor': 'fala de honorários com valor (isso é na reunião)',
-  'margem errada (o teto é 40%)': 'cita 30% ou 35% da renda (o teto do decreto é 40%)',
   'travessão': 'tem travessão (use vírgula, ponto ou dois-pontos)',
   'texto corrompido': 'tem marcação de sistema',
 }

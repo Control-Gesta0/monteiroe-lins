@@ -22,8 +22,10 @@ export interface DadosImagem {
   emprestimo: number
   cartaoConsignado: number
   cartaoBeneficio: number
-  /** teto de consignados sobre a renda líquida (0,4 = 40%) */
+  /** margem do órgão sobre a renda líquida (0,35 = 35%) */
   limite: number
+  /** 'emprestimo': a margem é só do empréstimo consignado; 'global': de todas as consignações */
+  alcance?: 'emprestimo' | 'global'
 }
 
 const COR = { emprestimo: '#2B5797', cartaoConsignado: '#6FA3DC', cartaoBeneficio: '#B8851A' }
@@ -74,8 +76,10 @@ function rosca(cx: number, cy: number, partes: Array<{ cor: string; v: number }>
 export function svgDaAnalise(d: DadosImagem, logoBase64 = logo()): string {
   const liq = d.bruta - d.obrigatorios
   const tot = d.emprestimo + d.cartaoConsignado + d.cartaoBeneficio
+  const soEmprestimo = d.alcance === 'emprestimo'
+  const usa = soEmprestimo ? d.emprestimo : tot
   const lim = liq * d.limite
-  const reducao = Math.max(0, tot - lim)
+  const reducao = Math.max(0, usa - lim)
   const sobra = liq - tot
   const limTxt = `${Math.round(d.limite * 100)}%`
   const fatias = ([
@@ -104,7 +108,7 @@ export function svgDaAnalise(d: DadosImagem, logoBase64 = logo()): string {
   // redução
   o.push(`<rect x="580" y="266" width="444" height="372" rx="22" fill="${NAVY}"/>`)
   o.push(`<rect x="610" y="306" width="384" height="1" fill="#2B4A72"/><rect x="610" y="394" width="384" height="1" fill="#2B4A72"/>`)
-  o.push(texto(610, 342, 'Descontado hoje', { size: 19, cor: '#C9D3E3' }), texto(994, 342, brl(tot), { size: 19, weight: 700, cor: '#fff', ancora: 'end' }))
+  o.push(texto(610, 342, soEmprestimo ? 'Empréstimos hoje' : 'Descontado hoje', { size: 19, cor: '#C9D3E3' }), texto(994, 342, brl(usa), { size: 19, weight: 700, cor: '#fff', ancora: 'end' }))
   o.push(texto(610, 374, `Limite (${limTxt})`, { size: 19, cor: '#C9D3E3' }), texto(994, 374, brl(lim), { size: 19, weight: 700, cor: '#fff', ancora: 'end' }))
   o.push(texto(610, 452, 'Com a ação de readequação de', { size: 22, cor: '#C9D3E3' }))
   o.push(texto(610, 482, 'margem, é possível reduzir cerca de', { size: 22, cor: '#C9D3E3' }))
@@ -114,7 +118,7 @@ export function svgDaAnalise(d: DadosImagem, logoBase64 = logo()): string {
   const linhas = [
     ...fatias.map(f => ({ cor: COR[f[0]], nome: f[1], v: f[2], p: f[2] / liq, vermelho: false })),
     { cor: 'url(#livreQ)', nome: 'Sobra para você', v: sobra, p: sobra / liq, vermelho: false },
-    { cor: RED, nome: `Limite para consignados (${limTxt})`, v: lim, p: d.limite, vermelho: true },
+    { cor: RED, nome: `Limite para ${soEmprestimo ? 'empréstimo consignado' : 'consignados'} (${limTxt})`, v: lim, p: d.limite, vermelho: true },
   ]
   const yl = 662, hl = 76 + linhas.length * 43
   o.push(`<rect x="56" y="${yl}" width="968" height="${hl}" rx="22" fill="#fff"/>`)
