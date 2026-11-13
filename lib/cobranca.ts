@@ -3,7 +3,7 @@ import { CONFIG } from './config'
 
 /**
  * COBRANÇA DO CONTRACHEQUE (pedido da Dra. Patrícia, 27/10/2026): a Lia pediu o
- * contracheque e o lead sumiu → até 3 lembretes, 2 h, 1 dia e 3 dias depois do pedido,
+ * contracheque e o lead sumiu → lembretes 1 dia e 3 dias depois do pedido (até 12/11/2026: também 2 h),
  * só de segunda a sábado, das 8h às 20h (Brasília).
  *
  * Cada lembrete é uma mensagem atrasada no QStash que chama /api/cobranca na hora certa.
@@ -12,7 +12,12 @@ import { CONFIG } from './config'
  * O card não muda de etapa (opção A, 27/10/2026): "follow - não responde" dispara o robô do Kommo.
  */
 
-export const ATRASOS_H = [2, 24, 72] as const
+/**
+ * Lembretes: o número do texto (cobranca_1/2/3) e quantas horas depois do pedido.
+ * Desde 13/11/2026 são dois (1 dia e 3 dias): o de 2 horas deixava a conversa repetitiva.
+ * O texto 2 só vale para lembretes já agendados antes disso.
+ */
+export const LEMBRETES = [{ n: 1, h: 24 }, { n: 3, h: 72 }] as const
 const BRT_MS = 3 * 3600_000
 
 /** Primeiro instante em horário comercial (seg a sáb, 8h às 20h de Brasília) a partir de `ms`. */
@@ -41,9 +46,8 @@ export async function agendarCobrancas(leadId: number, desde: number): Promise<v
   const destino = `${CONFIG.selfUrl}/api/cobranca`
   // Modo de teste (COBRANCA_TESTE_MINUTOS): só nos leads de teste, lembretes a cada N minutos, a qualquer hora
   const teste = CONFIG.cobrancaTesteMinutos > 0 && CONFIG.testLeadIds.includes(leadId)
-  for (let i = 0; i < ATRASOS_H.length; i++) {
-    const n = i + 1
-    const quando = teste ? desde + n * CONFIG.cobrancaTesteMinutos * 60_000 : emHorarioComercial(desde + ATRASOS_H[i] * 3600_000)
+  for (const [i, { n, h }] of LEMBRETES.entries()) {
+    const quando = teste ? desde + (i + 1) * CONFIG.cobrancaTesteMinutos * 60_000 : emHorarioComercial(desde + h * 3600_000)
     const res = await fetch(`${CONFIG.qstashUrl}/v2/publish/${destino}`, {
       method: 'POST',
       headers: {

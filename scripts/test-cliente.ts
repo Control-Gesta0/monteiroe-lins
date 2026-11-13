@@ -467,5 +467,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     eq('Defensoria: sem estado fixo', /Defensoria Pública do seu estado/.test(CRM_MAP.sdr.textos.renda_abaixo), true)
   }
 
+  const { LEMBRETES } = await import('../lib/cobranca')
+  eq('cobrança: dois lembretes, 1 dia (texto 1) e 3 dias (texto 3) depois do pedido', LEMBRETES.map(l => [l.n, l.h]), [[1, 24], [3, 72]])
+
   return 0
 }
