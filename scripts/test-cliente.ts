@@ -362,7 +362,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   eq('resultado sem nome começa com maiúscula', bc.resultadoQualificado({}, '', '59,6%', 'R$ 1', 'x').slice(0, 20), 'Após a análise, veri')
   const as19 = Date.parse('2026-10-27T19:30:00-03:00'), as9 = Date.parse('2026-10-28T09:00:00-03:00'), as14 = Date.parse('2026-10-28T14:00:00-03:00')
   eq('saudação pelo horário de Brasília', [bc.saudacaoAgora(as9), bc.saudacaoAgora(as14), bc.saudacaoAgora(as19)], ['Bom dia', 'Boa tarde', 'Boa noite'])
-  eq('cobrança: saudação e nome; sem nome tira o nome e a vírgula', [bc.cobranca({}, 1, 'Ana', as19).slice(0, 24), bc.cobranca({}, 1, '', as9).slice(0, 20)], ['Boa noite, Ana! Acho que', 'Bom dia! Acho que vo'])
+  eq('cobrança: saudação e nome; sem nome tira o nome e a vírgula', [bc.cobranca({}, 2, 'Ana', as19).slice(0, 24), bc.cobranca({}, 2, '', as9).slice(0, 20), bc.cobranca({}, 1, '', as9).slice(0, 18)], ['Boa noite, Ana! Passando', 'Bom dia! Passando pa', 'Conseguiu separar '])
   eq('resultado: trava exige as três variáveis', bc.validarTexto('resultado', 'Sua renda está comprometida.').length, 3)
   const { emHorarioComercial, chaveCobranca } = await import('../lib/cobranca')
   const brt = (iso: string) => Date.parse(iso + '-03:00')
@@ -468,7 +468,8 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   }
 
   const { LEMBRETES } = await import('../lib/cobranca')
-  eq('cobrança: dois lembretes, 1 dia (texto 1) e 3 dias (texto 3) depois do pedido', LEMBRETES.map(l => [l.n, l.h]), [[1, 24], [3, 72]])
+  eq('cobrança: três lembretes, 2 horas, 1 dia e 3 dias depois do pedido', LEMBRETES.map(l => [l.n, l.h]), [[1, 2], [2, 24], [3, 72]])
+  eq('cobrança: as três frases começam diferente e passam nas travas', [new Set([1, 2, 3].map(n => bc.cobranca({}, n as 1 | 2 | 3, 'Adriana').split(' ').slice(0, 2).join(' '))).size, [1, 2, 3].map(n => bc.validarTexto(`cobranca_${n}` as 'cobranca_1', bc.PADRAO_CODIGO[`cobranca_${n}` as 'cobranca_1']!).length)], [3, [0, 0, 0]])
 
   return 0
 }

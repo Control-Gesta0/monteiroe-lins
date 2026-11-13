@@ -30,8 +30,8 @@ export const ITENS = [
   { id: 'enc_atendimento', grupo: 'encerramentos', titulo: 'Passagem para a equipe (24 horas)', ajuda: 'Quando o lead já é cliente, pergunta do processo ou pede uma pessoa. Promete resposta em até 24 horas.' },
   { id: 'pergunta_dividas', grupo: 'encerramentos', titulo: 'Pergunta das outras dívidas (depois do resultado)', ajuda: 'Enviada pelo sistema logo depois do resultado da análise, em mensagem separada. A resposta do lead vai como nota no card, para o advogado.' },
   { id: 'resultado', grupo: 'encerramentos', titulo: 'Resultado da análise (qualificado)', ajuda: 'Enviada pelo sistema quando o contracheque qualifica. {comprometimento} vira "59,6%", {economia} vira "R$ 1.617,83" (quanto a parcela pode baixar por mês, teto de 40%), {opcoes} vira os dois horários livres da agenda ("na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 16h*") e {nome} vira o primeiro nome do lead (some se não houver).', exige: ['{comprometimento}', '{economia}', '{opcoes}'] },
-  { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (no dia seguinte)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque um dia depois do pedido (só de segunda a sábado, das 8h às 20h). {saudacao} vira Bom dia, Boa tarde ou Boa noite e {nome} o primeiro nome.' },
-  { id: 'cobranca_2', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (antiga, não é mais enviada)', ajuda: 'Era a cobrança do dia seguinte; desde 13/11/2026 a Lia manda só duas (1 dia e 3 dias). O card continua em Qualificação (a etapa "follow - não responde" dispara o robô de follow-up do Kommo).' },
+  { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (2 horas depois)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque 2 horas depois do pedido (só de segunda a sábado, das 8h às 20h). {saudacao} vira Bom dia, Boa tarde ou Boa noite e {nome} o primeiro nome.' },
+  { id: 'cobranca_2', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (no dia seguinte)', ajuda: 'Segunda cobrança, um dia depois. O card continua em Qualificação (a etapa "follow - não responde" dispara o robô de follow-up do Kommo).' },
   { id: 'cobranca_3', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (3 dias depois)', ajuda: 'Última cobrança, três dias depois do pedido. Depois dela a Lia não cobra mais.' },
   { id: 'confirmacao', grupo: 'encerramentos', titulo: 'Confirmação da reunião', ajuda: 'Enviada pelo sistema quando a reunião é marcada. {horario} vira "quinta (16/10) às 10h" e {onde} vira "por videochamada aqui no WhatsApp" ou o endereço.', exige: ['{horario}', '{onde}'] },
 ] as const
@@ -64,9 +64,9 @@ export const PADRAO_CODIGO: Partial<Textos> = {
   pergunta_dividas: 'Me conta também: além dos descontos do contracheque, você tem outras dívidas, como cartão de crédito ou empréstimo pessoal? Assim a nossa equipe já conhece o seu caso completo.',
   // Textos da Dra. Patrícia (27/10/2026). "Conseguimos reduzir em até" virou "é possível reduzir cerca de" (OAB: sem promessa de resultado)
   resultado: '{nome}, após a análise, verificamos que a sua renda está comprometida em *{comprometimento}* referente aos empréstimos consignados. Com a ação de readequação de margem, é possível reduzir cerca de *{economia}* por mês para você. O que acha de agendarmos uma reunião com um advogado especialista {opcoes}?',
-  cobranca_1: '{saudacao}, {nome}! Acho que você esqueceu de mandar o contracheque. Estamos aguardando para enviar a sua análise, que é gratuita.',
-  cobranca_2: '{saudacao}, {nome}! Ainda estamos aguardando o seu contracheque para enviar a sua análise gratuita. Pode mandar a foto da página inteira por aqui mesmo.',
-  cobranca_3: '{saudacao}, {nome}! Vou deixar a sua análise em aberto por aqui. Quando quiser, é só mandar a foto do contracheque que eu envio a sua análise.',
+  cobranca_1: '{nome}, conseguiu separar o seu contracheque? Assim que você mandar a foto ou o PDF por aqui, eu já faço a sua análise.',
+  cobranca_2: '{saudacao}, {nome}! Passando para lembrar que a sua análise gratuita continua disponível. É só mandar uma foto do contracheque, com a página inteira.',
+  cobranca_3: '{nome}, vou deixar a sua análise em aberto por aqui. Quando for melhor para você, é só mandar o contracheque que eu faço a análise.',
 }
 
 const BLOCO = /<!-- base:([a-z_]+) -->(\n?)([\s\S]*?)(\n?)<!-- \/base -->/g
