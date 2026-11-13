@@ -210,7 +210,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   {
     const { w, port } = mundo()
     const out = await runTool(ctx(port, 'CONTRACHEQUE | PMERJ | 09/2026 | parcial\nRUBRICA | 1 | SOLDO | P | 12.000,00\nRUBRICA | 2 | IMP RENDA | D | 2.000,00\nRUBRICA | 3 | EMPREST BRADESCO | D | 4.800,00\nRUBRICA | 4 | DESC DIVERSOS | D | 900,00'), 'analisar_contracheque', {})
-    eq('fluxo revisão: análise prévia pelo código, com o desconto a conferir e as 24h', [/^Fiz uma análise prévia/.test(out.textoFinal || ''), /\*48%\*/.test(out.textoFinal || ''), /\(DESC DIVERSOS\)/.test(out.textoFinal || ''), /24 horas/.test(out.textoFinal || '')], [true, true, true, true])
+    eq('fluxo revisão: o cliente recebe a análise, sem aviso de conferência pela equipe', [/^Fiz a análise do seu contracheque: \*48%\*/.test(out.textoFinal || ''), /equipe|24 horas/.test(out.textoFinal || '')], [true, false])
     eq('fluxo revisão: etapa Retorno Imediato + tarefa em 24h', [w.statusId, w.tasks[0]?.typeId, w.tasks[0]?.completeTill], [CRM_MAP.sdr.etapas.revisao, CRM_MAP.sdr.tarefas.tipoRetorno, quartaManha + 24 * 3600])
   }
   {
@@ -419,7 +419,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     const { w, port } = mundo()
     const a = await runTool(ctx(port, transcricao), 'analisar_contracheque', {})
     eq('dívidas: o resultado sai na hora, com os horários', [a.isError, /após a análise/i.test(a.textoFinal || ''), /quinta \(15\/10\) às 15h30/.test(a.textoFinal || ''), w.statusId], [false, true, true, CRM_MAP.sdr.etapas.qualificado])
-    eq('dívidas: a pergunta é um texto aprovado, sem promessa', [bc.validarTexto('pergunta_dividas', bc.PADRAO_CODIGO.pergunta_dividas!), /outras dívidas/.test(bc.PADRAO_CODIGO.pergunta_dividas!)], [[], true])
+    eq('dívidas: a pergunta é um texto aprovado, sem promessa', [bc.validarTexto('pergunta_dividas', bc.PADRAO_CODIGO.pergunta_dividas!), /empréstimo pessoal/.test(bc.PADRAO_CODIGO.pergunta_dividas!) && !/cartão/.test(bc.PADRAO_CODIGO.pergunta_dividas!)], [[], true])
   }
 
   // ---------- 17. Mensagem pronta do anúncio ----------
@@ -443,16 +443,12 @@ export default async function testesCliente(eq: Eq): Promise<number> {
     function svgSemCb() { return im.svgDaAnalise({ nome: 'A&B', orgao: 'PMERJ', competencia: '09/2026', bruta: 11600, obrigatorios: 3336.83, emprestimo: 4510.9, cartaoConsignado: 412.2, cartaoBeneficio: 0, limite: 0.4 }, 'eA==') }
   }
 
-  // ---------- 19. Revisão com análise prévia ----------
-  eq('revisão: análise prévia com o comprometimento e os descontos a conferir', [
-    bc.revisaoPrevia({}, 'Ana', '29,9%', null, ['LECCA', 'FUNFIN']),
-    bc.revisaoPrevia({}, '', '52%', 'R$ 1.200,00', ['NEO INSTITUICAO DE PAGAMENTO']).includes('é possível reduzir cerca de *R$ 1.200,00* por mês'),
-    [bc.nomeCurtoRubrica('FUNFIN - EMENDA 41 À LOM'), bc.nomeCurtoRubrica('APROFEM-SIND PROF FUNC ENS MUN'), bc.nomeCurtoRubrica('LECCA')],
-    bc.validarTexto('enc_revisao_previa', bc.PADRAO_CODIGO.enc_revisao_previa!),
-  ], [
-    'Ana, fiz uma análise prévia do seu contracheque. Com os descontos que consegui identificar, *29,9%* da sua renda líquida está indo para os consignados. Alguns descontos (LECCA e FUNFIN) precisam ser conferidos pela nossa equipe, porque podem mudar esse resultado. A equipe te responde por aqui em até 24 horas.',
-    true, ['FUNFIN', 'APROFEM', 'LECCA'], [],
-  ])
+  // ---------- 19. Análise para quem não qualifica ou vai para revisão ----------
+  eq('análise: comprometimento e, se houver, a redução', [
+    bc.analiseResumo({}, 'Ana', '29,9%', null),
+    bc.analiseResumo({}, '', '43%', 'R$ 280,00').includes('a redução possível na parcela seria de cerca de *R$ 280,00* por mês'),
+    bc.validarTexto('analise_resumo', bc.PADRAO_CODIGO.analise_resumo!),
+  ], ['Ana, fiz a análise do seu contracheque: *29,9%* da sua renda líquida está indo para os consignados.', true, []])
 
   // ---------- 20. Leitura errada: conta impossível e arquivo com vários contracheques ----------
   {

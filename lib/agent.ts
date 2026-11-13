@@ -173,7 +173,7 @@ export async function processLead(leadId: number, webhookId: string): Promise<vo
 
       const detail = await enviar(leadId, reply.text)
       await markAnswered(leadId, target.id)
-      // Pedido do escritório (11/11/2026): saiu o resultado da análise, então a pergunta das outras dívidas, em mensagem separada
+      // Pedido do escritório (11/11/2026): saiu o resultado da análise, então a pergunta do empréstimo pessoal, em mensagem separada
       const aposAnalise = await getState(leadId)
       // Teste (11/11/2026): imagem com o resumo da análise, só para os leads de IMAGEM_ANALISE
       const an = aposAnalise.analise

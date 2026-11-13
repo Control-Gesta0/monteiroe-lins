@@ -123,14 +123,14 @@ async function anotarRecusa(r: { motivo: string; canal: string; body: Record<str
 }
 
 /**
- * Primeira resposta do lead depois da pergunta das outras dívidas: vira nota no card, para o advogado.
+ * Primeira resposta do lead depois da pergunta do empréstimo pessoal: vira nota no card, para o advogado.
  * Vale também quando a Lia já encerrou (desqualificado ou revisão): a equipe lê no card.
  */
 async function anotarDividas(leadId: number, texto: string): Promise<void> {
   const st = await getState(leadId)
   if (!st.dividasPerguntadas || st.dividasAnotadas || Date.now() - st.dividasPerguntadas > 3 * 86400_000) return
   await patchState(leadId, { dividasAnotadas: true })
-  await addLeadNote(leadId, `🤖 Lia · outras dívidas (fora do contracheque). Primeira resposta do lead depois da pergunta:\n"${texto.slice(0, 1500)}"`)
+  await addLeadNote(leadId, `🤖 Lia · empréstimo pessoal (fora do contracheque). Primeira resposta do lead depois da pergunta:\n"${texto.slice(0, 1500)}"`)
 }
 
 /** Mensagem de conversa que o lerEvento descartou (ex.: @lid sem número): guarda o resumo das últimas 30 para diagnóstico. */

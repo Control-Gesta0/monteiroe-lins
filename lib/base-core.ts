@@ -26,10 +26,9 @@ export const ITENS = [
   { id: 'enc_renda_abaixo', grupo: 'encerramentos', titulo: 'Renda abaixo do mínimo', ajuda: 'Enviada pelo sistema quando a renda bruta do contracheque não passa de R$ 10.000. Indica a Defensoria.' },
   { id: 'enc_alivio_baixo', grupo: 'encerramentos', titulo: 'Redução pequena demais', ajuda: 'Enviada pelo sistema quando a análise mostra que a parcela baixaria pouco e a ação não compensa.' },
   { id: 'enc_revisao', grupo: 'encerramentos', titulo: 'Contracheque para a equipe conferir', ajuda: 'Enviada quando o contracheque tem descontos que o sistema não reconheceu e não dá para mostrar uma análise prévia (valor ilegível). Promete resposta em até 24 horas.' },
-  { id: 'analise_resumo', grupo: 'encerramentos', titulo: 'Resultado da análise (quando não qualifica)', ajuda: 'Enviada pelo sistema antes da mensagem de renda abaixo do mínimo ou de redução pequena: o cliente recebe a análise mesmo assim. {comprometimento} vira "29,7%", {reducao} vira a frase da redução quando ela existe (some se não houver) e {nome} o primeiro nome.', exige: ['{comprometimento}'] },
-  { id: 'enc_revisao_previa', grupo: 'encerramentos', titulo: 'Análise prévia (descontos para a equipe conferir)', ajuda: 'Enviada quando o contracheque tem descontos que o sistema não reconheceu: mostra o comprometimento calculado com o que foi reconhecido. {comprometimento} vira "29,9%", {revisar} vira os descontos a conferir ("FUNFIN, LECCA e SINPEEM"), {reducao} vira a frase da redução quando ela existe (some se não houver) e {nome} o primeiro nome.', exige: ['{comprometimento}', '{revisar}'] },
+  { id: 'analise_resumo', grupo: 'encerramentos', titulo: 'Resultado da análise (quando não qualifica)', ajuda: 'Enviada pelo sistema quando o contracheque não qualifica (antes da mensagem de renda abaixo do mínimo ou de redução pequena) e quando vai para a equipe conferir algum desconto: o cliente recebe a análise mesmo assim. {comprometimento} vira "29,7%", {reducao} vira a frase da redução quando ela existe (some se não houver) e {nome} o primeiro nome.', exige: ['{comprometimento}'] },
   { id: 'enc_atendimento', grupo: 'encerramentos', titulo: 'Passagem para a equipe (24 horas)', ajuda: 'Quando o lead já é cliente, pergunta do processo ou pede uma pessoa. Promete resposta em até 24 horas.' },
-  { id: 'pergunta_dividas', grupo: 'encerramentos', titulo: 'Pergunta das outras dívidas (depois do resultado)', ajuda: 'Enviada pelo sistema logo depois do resultado da análise, em mensagem separada. A resposta do lead vai como nota no card, para o advogado.' },
+  { id: 'pergunta_dividas', grupo: 'encerramentos', titulo: 'Pergunta do empréstimo pessoal (depois do resultado)', ajuda: 'Enviada pelo sistema logo depois do resultado da análise, em mensagem separada. A resposta do lead vai como nota no card, para o advogado.' },
   { id: 'resultado', grupo: 'encerramentos', titulo: 'Resultado da análise (qualificado)', ajuda: 'Enviada pelo sistema quando o contracheque qualifica. {comprometimento} vira "59,6%", {economia} vira "R$ 1.617,83" (quanto a parcela pode baixar por mês, teto de 40%), {opcoes} vira os dois horários livres da agenda ("na *quarta (28/10) às 15h30* ou na *quinta (29/10) às 16h*") e {nome} vira o primeiro nome do lead (some se não houver).', exige: ['{comprometimento}', '{economia}', '{opcoes}'] },
   { id: 'cobranca_1', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (2 horas depois)', ajuda: 'Enviada pelo sistema quando o lead não mandou o contracheque 2 horas depois do pedido (só de segunda a sábado, das 8h às 20h). {saudacao} vira Bom dia, Boa tarde ou Boa noite e {nome} o primeiro nome.' },
   { id: 'cobranca_2', grupo: 'encerramentos', titulo: 'Cobrança do contracheque (no dia seguinte)', ajuda: 'Segunda cobrança, um dia depois. O card continua em Qualificação (a etapa "follow - não responde" dispara o robô de follow-up do Kommo).' },
@@ -60,10 +59,9 @@ export const PADRAO_CODIGO: Partial<Textos> = {
   enc_alivio_baixo: CRM_MAP.sdr.textos.alivio_baixo,
   enc_revisao: CRM_MAP.sdr.textos.revisao_humana,
   analise_resumo: '{nome}, fiz a análise do seu contracheque: *{comprometimento}* da sua renda líquida está indo para os consignados.{reducao}',
-  enc_revisao_previa: '{nome}, fiz uma análise prévia do seu contracheque. Com os descontos que consegui identificar, *{comprometimento}* da sua renda líquida está indo para os consignados.{reducao} Alguns descontos ({revisar}) precisam ser conferidos pela nossa equipe, porque podem mudar esse resultado. A equipe te responde por aqui em até 24 horas.',
   enc_atendimento: CRM_MAP.sdr.textos.atendimento,
   confirmacao: 'Fechado: {horario}, {onde}. Até lá!',
-  pergunta_dividas: 'Me conta também: além dos descontos do contracheque, você tem outras dívidas, como cartão de crédito ou empréstimo pessoal? Assim a nossa equipe já conhece o seu caso completo.',
+  pergunta_dividas: 'Me conta também: além dos descontos do contracheque, você tem empréstimo pessoal, daqueles descontados direto na conta? Assim a nossa equipe já conhece o seu caso completo.',
   // Textos da Dra. Patrícia (27/10/2026). "Conseguimos reduzir em até" virou "é possível reduzir cerca de" (OAB: sem promessa de resultado)
   resultado: '{nome}, após a análise, verificamos que a sua renda está comprometida em *{comprometimento}* referente aos empréstimos consignados. Com a ação de readequação de margem, é possível reduzir cerca de *{economia}* por mês para você. O que acha de agendarmos uma reunião com um advogado especialista {opcoes}?',
   cobranca_1: '{nome}, conseguiu separar o seu contracheque? Assim que você mandar a foto ou o PDF por aqui, eu já faço a sua análise.',
@@ -150,23 +148,10 @@ export function resultadoQualificado(textos: Partial<Textos>, nome: string, comp
   return comNome((textos.resultado ?? PADRAO_CODIGO.resultado!).replace('{comprometimento}', comprometimento).replace('{economia}', economia).replace('{opcoes}', opcoes), nome)
 }
 
-/** Análise prévia da revisão: o que deu para calcular e os descontos que a equipe confere. */
-export function revisaoPrevia(textos: Partial<Textos>, nome: string, comprometimento: string, reducao: string | null, revisar: string[]): string {
-  const lista = revisar.length > 1 ? `${revisar.slice(0, -1).join(', ')} e ${revisar[revisar.length - 1]}` : revisar[0] || ''
-  const frase = reducao ? ` Por essa conta prévia, com a ação de readequação de margem é possível reduzir cerca de *${reducao}* por mês.` : ''
-  return comNome((textos.enc_revisao_previa ?? PADRAO_CODIGO.enc_revisao_previa!).replace('{comprometimento}', comprometimento).replace('{revisar}', lista).replace('{reducao}', frase), nome)
-}
-
 /** Análise para quem não qualifica: o cliente recebe os números antes da mensagem de encerramento (13/11/2026). */
 export function analiseResumo(textos: Partial<Textos>, nome: string, comprometimento: string, reducao: string | null): string {
   const frase = reducao ? ` Pela conta, a redução possível na parcela seria de cerca de *${reducao}* por mês.` : ''
   return comNome((textos.analise_resumo ?? PADRAO_CODIGO.analise_resumo!).replace('{comprometimento}', comprometimento).replace('{reducao}', frase), nome)
-}
-
-/** "FUNFIN - EMENDA 41 À LOM" → "FUNFIN"; "APROFEM-SIND PROF…" → "APROFEM" (nome curto do desconto para o lead). */
-export function nomeCurtoRubrica(descricao: string): string {
-  const t = descricao.split(/\s*-\s*/)[0].trim()
-  return t.length > 28 ? `${t.slice(0, 27).trimEnd()}…` : t
 }
 
 /** Cobrança do contracheque (1, 2 ou 3). */

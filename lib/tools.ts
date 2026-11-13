@@ -9,7 +9,7 @@ import type { LeadState } from './state'
 import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
 import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
 import { extrairContracheque } from './contracheque-texto'
-import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos, revisaoPrevia, nomeCurtoRubrica, analiseResumo } from './base-core'
+import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos, analiseResumo } from './base-core'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -343,16 +343,16 @@ async function analisar(ctx: ToolCtx): Promise<ToolOutcome> {
   if (corp) await port.writeFields([{ field_id: sdr.campos.corporacao, values: [{ enum_id: corp.enumId }] }])
 
   const resumo = `Análise: ${r.decisao} (${r.motivo}). Comprometimento ${pct(r.totais.comprometimento)}, redução estimada ${brl(r.reducaoMensal)}/mês.`
-  // Revisão por rubrica não reconhecida (e sem valor ilegível): o lead recebe a análise prévia com esses descontos citados
-  const revisar = r.decisao === 'revisao_humana' && !lido.ilegiveis.length && !r.incoerente ? [...new Set(r.rubricasARevisar.map(x => nomeCurtoRubrica(x.descricao)))].slice(0, 4) : []
+  // Revisão por rubrica não reconhecida (sem valor ilegível e com a conta fechando): o lead recebe a análise com o que deu para calcular
+  const comAnalise = r.decisao !== 'revisao_humana' || (!lido.ilegiveis.length && !r.incoerente)
   const limite = r.regra
     ? `Limite do órgão: ${pct(r.regra.margem!)} da renda líquida ${r.regra.alcance === 'global' ? 'para todas as consignações' : 'para empréstimo consignado'} (${r.regra.nome}, ${r.regra.norma}).`
     : 'Órgão fora da tabela de margens do escritório: a conta usou o teto de 40% sobre todas as consignações; se o lead perguntar do limite, diga que o advogado confirma a regra do órgão dele na reunião.'
-  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, revisar, limite }
+  const decisao = { decisao: r.decisao, resumo, comprometimento: r.totais.comprometimento, reducaoMensal: r.reducaoMensal, comAnalise, limite }
   return aplicarDecisao(ctx, decisao)
 }
 
-type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; revisar?: string[]; limite?: string }
+type Decisao = { decisao: string; resumo: string; comprometimento: number; reducaoMensal: number; comAnalise?: boolean; limite?: string }
 
 /** O que cada resultado faz no card e a mensagem que sai (qualificado traz os dois horários livres). */
 export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutcome> {
@@ -394,11 +394,12 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
     default:
       await moverSdr(port, sdr.etapas.revisao)
       await aplicarFinalizacao(ctx, 'revisao_humana', resumo)
-      // Pedido do escritório (12/11/2026): mesmo na revisão, o cliente recebe a análise com o que deu para calcular
-      const msg = d.revisar?.length && r.totais.comprometimento > 0
-        ? revisaoPrevia(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), r.reducaoMensal > 0 ? brl(r.reducaoMensal) : null, d.revisar)
+      // Pedido do escritório (12 e 13/11/2026): com números, o cliente recebe a análise, sem aviso de conferência
+      // (a equipe confere pela tarefa do card); sem números (valor ilegível, conta impossível), o aviso de 24 horas
+      const msg = d.comAnalise && r.totais.comprometimento > 0
+        ? analiseResumo(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), r.reducaoMensal >= 1 ? brl(r.reducaoMensal) : null)
         : texto(ctx, 'enc_revisao')
-      return ok('Revisão humana. A mensagem aprovada (com a análise prévia, quando dá) já sai pelo sistema.', { handoff: true, textoFinal: msg })
+      return ok('Revisão humana. A mensagem aprovada (com a análise, quando dá) já sai pelo sistema.', { handoff: true, textoFinal: msg })
   }
 }
 
