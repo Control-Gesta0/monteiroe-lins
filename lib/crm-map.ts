@@ -167,7 +167,7 @@ export const CRM_MAP = {
     endereco: 'Rua da Quitanda, 19, sala 711, Centro',
     textos: {
       renda_abaixo: 'Olhando a sua situação com cuidado, pelas exigências da lei e pelos custos do processo, a ação não seria vantajosa pra você agora. A Defensoria Pública do seu estado atende de graça e pode te orientar nesse caso. Se a sua situação mudar, pode chamar a gente de novo.',
-      alivio_baixo: 'Fiz a análise e a redução na parcela seria pequena, não compensaria o custo de entrar com a ação. Prefiro ser sincera com você do que te indicar algo que não vai trazer retorno. Se a situação mudar, me chama aqui.',
+      alivio_baixo: 'A redução na parcela seria pequena e não compensaria o custo de entrar com a ação. Prefiro ser sincera com você do que te indicar algo que não vai trazer retorno. Se a situação mudar, me chama aqui.',
       revisao_humana: `Recebi tudo. Tem uns descontos no seu contracheque que a equipe precisa conferir, e eles te respondem por aqui em até 24 horas.`,
       atendimento: TEXTO_24H,
     },

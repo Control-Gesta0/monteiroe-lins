@@ -201,7 +201,7 @@ export default async function testesCliente(eq: Eq): Promise<number> {
   {
     const { w, port } = mundo()
     const out = await runTool(ctx(port, 'CONTRACHEQUE | PMERJ | 09/2026 | sim\nRUBRICA | 1 | SOLDO | P | 5.200,00\nRUBRICA | 2 | GRAT | P | 1.800,00\nRUBRICA | 3 | EMP CONSIG SANTANDER | D | 2.600,00'), 'analisar_contracheque', {})
-    eq('fluxo renda abaixo: texto da Defensoria pelo código', [out.handoff, out.textoFinal], [true, CRM_MAP.sdr.textos.renda_abaixo])
+    eq('fluxo renda abaixo: a análise sai antes do texto da Defensoria', [out.handoff, /^Fiz a análise do seu contracheque: \*\d+(,\d)?%\* da sua renda líquida/.test(out.textoFinal || ''), (out.textoFinal || '').endsWith(CRM_MAP.sdr.textos.renda_abaixo)], [true, true, true])
     eq('fluxo renda abaixo: tag de conferência, IA desligada, sem tarefa', [w.tags.has('lia-desqualificou'), w.tags.has('lia'), w.tasks.length], [true, false, 0])
     eq('fluxo renda abaixo: na rampagem NÃO move para perdido', [w.lost, w.statusId], [undefined, CRM_MAP.sdr.etapas.qualificacao])
     const c = await runTool(ctx(port, 'oi'), 'consultar_horarios', {})

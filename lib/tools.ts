@@ -9,7 +9,7 @@ import type { LeadState } from './state'
 import { duasOpcoes, horariosLivres, naGrade, ocupado, slotDeIso, type Slot } from './agenda'
 import { analisarContracheque, type ResultadoAnalise } from './analise-contracheque'
 import { extrairContracheque } from './contracheque-texto'
-import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos, revisaoPrevia, nomeCurtoRubrica } from './base-core'
+import { PADRAO_CODIGO, confirmacao, primeiroNome, resultadoQualificado, type Textos, revisaoPrevia, nomeCurtoRubrica, analiseResumo } from './base-core'
 
 /**
  * As tools falam com o CRM por uma PORTA DE DADOS. Produção = Kommo + Redis
@@ -384,7 +384,12 @@ export async function aplicarDecisao(ctx: ToolCtx, d: Decisao): Promise<ToolOutc
         const lead = await port.getLead()
         if (lead.pipelineId === sdr.pipelineId && sdr.etapasDaIA.includes(lead.statusId)) await port.markLost(sdr.desqualificacao.motivoPerda[r.decisao as 'renda_abaixo' | 'alivio_baixo'])
       }
-      return ok(`Desqualificado (${r.decisao}). A mensagem aprovada já sai pelo sistema.`, { handoff: true, textoFinal: texto(ctx, r.decisao === 'renda_abaixo' ? 'enc_renda_abaixo' : 'enc_alivio_baixo') })
+      // Pedido do escritório (13/11/2026): mesmo sem qualificar, o cliente recebe a análise antes do encerramento
+      const enc = texto(ctx, r.decisao === 'renda_abaixo' ? 'enc_renda_abaixo' : 'enc_alivio_baixo')
+      const analise = r.totais.comprometimento > 0
+        ? `${analiseResumo(ctx.textos || {}, primeiroNome(ctx.nome || ''), pct(r.totais.comprometimento), r.reducaoMensal >= 1 ? brl(r.reducaoMensal) : null)}\n\n`
+        : ''
+      return ok(`Desqualificado (${r.decisao}). A análise e a mensagem aprovada já saem pelo sistema.`, { handoff: true, textoFinal: analise + enc })
     }
     default:
       await moverSdr(port, sdr.etapas.revisao)
